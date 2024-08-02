@@ -18,6 +18,7 @@ import atexit
 import termios
 import asyncio
 import logging
+import typing
 from el.errors import SetupError
 
 
@@ -125,12 +126,12 @@ class TerminalController(logging.Handler):
     def _reprint_command_line(self) -> None:
         sys.stdout.write(self._prompt + self._command_buffer)
     
-    def print(self, log: str) -> None:
+    def print(self, log: str | typing.Any) -> None:
         """
         normal print function that can be used to print lines to the terminal
         """
         self._clear_line()
-        sys.stdout.write(log)
+        sys.stdout.write(str(log))
         sys.stdout.write("\n\r")
         self._reprint_command_line()
         sys.stdout.flush()
