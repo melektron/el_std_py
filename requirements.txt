@@ -1,0 +1,5 @@
+annotated-types==0.7.0
+-e git+https://github.com/melektron/el_py.git@ef98e0ba69175ae1f044c2deeaeb1dcdd3b0e1a2#egg=el_py
+pydantic==2.8.2
+pydantic_core==2.20.1
+typing_extensions==4.12.2
