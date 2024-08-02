@@ -113,7 +113,6 @@ class TerminalController(logging.Handler):
             else:   # normal character
                 text = c.decode()
                 self._command_buffer += text
-                print(self._command_buffer.encode())
                 sys.stdout.write(text)
                 sys.stdout.flush()
         
