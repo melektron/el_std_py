@@ -19,7 +19,7 @@ from ._deps import pydantic, ModelMetaclass
 
 if typing.TYPE_CHECKING:
     from ._base_struct import BaseStruct
-
+from ._fields import BaseField
 
 PyStructBaseTypes = bytes | int | bool | float
 StructIntermediate = typing.Collection[PyStructBaseTypes] | PyStructBaseTypes
@@ -58,165 +58,6 @@ ARRAY_CAPABLE_TYPES: list[BinaryDataType] = [
 ]
 
 
-@dataclasses.dataclass(
-    init=False, repr=True, eq=False, order=False,
-    unsafe_hash=False, frozen=False, match_args=True,
-    kw_only=False, slots=False, weakref_slot=False
-)
-class StructField:
-    """
-    Class for holding configuration and info for binary fields
-    of the structure. Some info is only populated during class creating
-    and other information can be passed directly by the user as field config.
-    """
-
-    # public fields to be provided by user
-
-    # What binary datatype the field has
-    binary_type: BinaryDataType
-    
-    # length for array
-    length: Optional[int] = None
-    
-    # bit width for types where that makes sense. This defines how many bits are consumed,
-    # somewhat like a C bit field
-    #width: Optional[int] = None
-    
-    # the encoding used for strings
-    encoding: str = "utf-8"
-
-    def __post_init__(self) -> None:
-        # the actual python datatype to represent this field
-        self._type_annotation: type = ...
-
-        # The code representing this field in a python struct string
-        self._struct_code: str = ""
-
-        # functions called after unpacking or before packing to convert the unpacked but 
-        # raw structure variable (bytes | int | bool | float) to a different higher-level 
-        # python object or the other way around.
-        self._unpacking_postprocessor: Callable[[PyStructBaseTypes], Any] = lambda data: data
-        self._packing_preprocessor: Callable[[Any], PyStructBaseTypes] = lambda field: field
-
-        # whether this field is an outlet for a computed field, in which case
-        # it will not be unpacked
-        self._is_outlet = False
-
-        # how many struct elements this field consumes or provides
-        self._element_consumption: int = 1
-
-        # how many bytes this field takes up in the structure
-        self._bytes_consumption: int = 0
-
-        # configure depending on the type
-        match self.binary_type:
-            
-            case "uint8":
-                if self.length is None:
-                    self.length = 1
-                self._bytes_consumption = 1 * self.length
-                self._struct_code = f"{self.length}B"
-            
-            case "uint16":
-                if self.length is None:
-                    self.length = 1
-                self._bytes_consumption = 2 * self.length
-                self._struct_code = f"{self.length}H"
-            
-            case "uint32":
-                if self.length is None:
-                    self.length = 1
-                self._bytes_consumption = 4 * self.length
-                self._struct_code = f"{self.length}I"
-            
-            case "uint64":
-                if self.length is None:
-                    self.length = 1
-                self._bytes_consumption = 8 * self.length
-                self._struct_code = f"{self.length}Q"
-            
-            case "int8":
-                if self.length is None:
-                    self.length = 1
-                self._bytes_consumption = 1 * self.length
-                self._struct_code = f"{self.length}b"
-            
-            case "int16":
-                if self.length is None:
-                    self.length = 1
-                self._bytes_consumption = 2 * self.length
-                self._struct_code = f"{self.length}h"
-            
-            case "int32":
-                if self.length is None:
-                    self.length = 1
-                self._bytes_consumption = 4 * self.length
-                self._struct_code = f"{self.length}i"
-            
-            case "int64":
-                if self.length is None:
-                    self.length = 1
-                self._bytes_consumption = 8 * self.length
-                self._struct_code = f"{self.length}q"
-            
-            case "float32":
-                if self.length is None:
-                    self.length = 1
-                self._bytes_consumption = 4 * self.length
-                self._struct_code = f"{self.length}f"
-            
-            case "float64":
-                if self.length is None:
-                    self.length = 1
-                self._bytes_consumption = 8 * self.length
-                self._struct_code = f"{self.length}d"
-            
-            case "char":
-                if self.length is None:
-                    self.length = 1
-                self._bytes_consumption = 1 * self.length
-                self._struct_code = f"{self.length}c"
-            
-            case "bool":
-                if self.length is None:
-                    self.length = 1
-                self._bytes_consumption = 1 * self.length
-                self._struct_code = f"{self.length}?"
-            
-            case "string":      # fixed length string (bytes converted to string)
-                self._struct_code = f"{int(self.length)}s"
-                self._unpacking_postprocessor = lambda data: data.decode(self.encoding)  # decode bytes to string
-                self._packing_preprocessor = lambda field: field.encode(self.encoding)     # encode string to bytes
-            
-            case "bytes":       # fixed length byte array (not converted to string)
-                self._struct_code = f"{int(self.length)}s"
-            
-            case "padding":     # fixed number of bytes that are ignored
-                self._struct_code = f"{int(self.length)}x"
-
-            case _: # TODO: figure out how to make this extendable 
-                raise TypeError(f"Invalid binary type '{self.binary_type}")
-
-        self._configure_struct_field()
-    
-    def _configure_struct_field(self) -> None:
-        """
-        To be overridden by base classes to hook into the configuration process
-        after initialization
-        """
-        ...
-
-    def _default_postprocessor(self, unpacked: PyStructBaseTypes):
-        """
-        By default, this simply returns the value from struct unpacking
-        """
-        return unpacked
-    
-    def _default_preprocessor(self, field_value: PyStructBaseTypes):
-        """
-        By default, this simply returns the field value directly
-        """
-        return field_value
 
 
 # This decorator enables type hinting magic (https://stackoverflow.com/a/73988406)
@@ -267,15 +108,16 @@ class StructMetaclass(ModelMetaclass):
         cls.struct_fields = dict()
         for field_name, field in cls.model_fields.items():
             for meta_element in field.metadata:
-                if isinstance(meta_element, StructField):   # struct field found
+                if isinstance(meta_element, BaseField):   # struct field found
                     # if the field is an outlet, check that a corresponding
+                    print(field.annotation)
                     # computed field exists and use it's name instead
                     if field_name.endswith("_outlet"):
                         source_name = field_name.removesuffix("_outlet")
                         if source_name not in cls.model_computed_fields:    # sure there is a corresponding outlet
                             raise NameError(f"There is no computed field called '{source_name}' to to supply outlet '{field_name}'.")
-                        meta_element._is_outlet = True  # mark this as an outlet
-                        meta_element._type_annotation = field.annotation    # store the python type to use
+                        meta_element.is_outlet = True  # mark this as an outlet
+                        meta_element.type_annotation = field.annotation    # store the python type to use
                         cls.struct_fields[source_name] = meta_element
                     else:
                         cls.struct_fields[field_name] = meta_element
@@ -284,7 +126,7 @@ class StructMetaclass(ModelMetaclass):
 
         for name, field in cls.struct_fields.items():
             # create structure string
-            cls.__bindantic_struct_code__ += field._struct_code
+            cls.__bindantic_struct_code__ += field.struct_code
         
 
             

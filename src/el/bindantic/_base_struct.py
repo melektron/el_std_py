@@ -16,7 +16,7 @@ import typing
 import struct
 from typing import ClassVar
 from ._deps import pydantic
-from ._struct_construction import StructMetaclass, StructField
+from ._struct_construction import StructMetaclass, BaseField
 
 
 class BaseStruct(pydantic.BaseModel, metaclass=StructMetaclass):
@@ -28,7 +28,7 @@ class BaseStruct(pydantic.BaseModel, metaclass=StructMetaclass):
         # declarations of the fields that are dynamically added by the metaclass so they
         # are visible for intellisense.
 
-        struct_fields: ClassVar[dict[str, StructField]]
+        struct_fields: ClassVar[dict[str, BaseField]]
         """
         Metadata about the fields present inside the struct.
         This is a subset of Pydantic's model_fields since not all model
@@ -55,7 +55,7 @@ class BaseStruct(pydantic.BaseModel, metaclass=StructMetaclass):
     
     def struct_dump_bytes(self) -> bytes:
         return { 
-            name: field._packing_preprocessor(getattr(self, name))
+            name: field.packing_preprocessor(getattr(self, name))
             for name, field 
             in self.struct_fields.items()
         }
