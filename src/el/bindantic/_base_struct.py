@@ -13,6 +13,7 @@ functionality
 """
 
 import typing
+import struct
 from typing import ClassVar
 from ._deps import pydantic
 from ._struct_construction import StructMetaclass, StructField
@@ -35,7 +36,27 @@ class BaseStruct(pydantic.BaseModel, metaclass=StructMetaclass):
 
         mapping from field name to StructField instance
         """
-    
+
+        __bindantic_struct_code__: ClassVar[str]
+        """
+        String code representing the entire binary structure for the
+        python struct module
+        """
+
+        __bindantic_struct_inst__: ClassVar[struct.Struct]
+        """
+        Compiled python structure instance used to pack and unpack from binary
+        data.
+        """
+
     def __init__(self, /, **data: typing.Any) -> None:
         super().__init__(**data)
         print(f"got config: {self.struct_fields}")
+    
+    def struct_dump_bytes(self) -> bytes:
+        return { 
+            name: field._packing_preprocessor(getattr(self, name))
+            for name, field 
+            in self.struct_fields.items()
+        }
+

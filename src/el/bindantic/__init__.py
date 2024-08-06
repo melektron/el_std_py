@@ -12,4 +12,4 @@ Binary structure support for Pydantic models
 """
 
 from ._base_struct import BaseStruct
-from ._struct_construction import StructField, VStr
+from ._struct_construction import StructField
