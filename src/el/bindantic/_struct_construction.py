@@ -14,12 +14,12 @@ Handling of Struct class creation similar to and extending Pydantic's model cons
 
 import typing
 from typing import Callable, Any, Optional, dataclass_transform
-import dataclasses
+from copy import deepcopy
 from ._deps import pydantic, ModelMetaclass
 
 if typing.TYPE_CHECKING:
     from ._base_struct import BaseStruct
-from ._fields import BaseField
+from ._fields import BaseField, get_field_from_type_data
 
 PyStructBaseTypes = bytes | int | bool | float
 StructIntermediate = typing.Collection[PyStructBaseTypes] | PyStructBaseTypes
@@ -107,20 +107,22 @@ class StructMetaclass(ModelMetaclass):
         # collect dict of all binary structure fields
         cls.struct_fields = dict()
         for field_name, field in cls.model_fields.items():
-            for meta_element in field.metadata:
-                if isinstance(meta_element, BaseField):   # struct field found
-                    # if the field is an outlet, check that a corresponding
-                    print(field.annotation)
-                    # computed field exists and use it's name instead
-                    if field_name.endswith("_outlet"):
-                        source_name = field_name.removesuffix("_outlet")
-                        if source_name not in cls.model_computed_fields:    # sure there is a corresponding outlet
-                            raise NameError(f"There is no computed field called '{source_name}' to to supply outlet '{field_name}'.")
-                        meta_element.is_outlet = True  # mark this as an outlet
-                        meta_element.type_annotation = field.annotation    # store the python type to use
-                        cls.struct_fields[source_name] = meta_element
-                    else:
-                        cls.struct_fields[field_name] = meta_element
+            # deepcopy so config is kept but multiple fields with the same
+            # shortcut type-alias don't share a single field instance
+            struct_field = get_field_from_type_data(
+                field_name, 
+                field.annotation,
+                field.metadata,
+                field
+            )
+            if struct_field is None:    # not a struct field
+                continue;
+            # if the field is an outlet, check that a corresponding
+            # computed field exists and use it's name instead
+            if struct_field.is_outlet:
+                if struct_field.field_name not in cls.model_computed_fields:
+                    raise NameError(f"There is no computed field called '{struct_field.field_name}' to to supply outlet '{struct_field.outlet_name}'.")
+            cls.struct_fields[struct_field.field_name] = struct_field
         
         cls.__bindantic_struct_code__ = ""
 

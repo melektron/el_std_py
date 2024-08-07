@@ -15,6 +15,8 @@ from el.errors import SetupError
 
 try:
     import pydantic
+    import pydantic.fields
+    import pydantic_core
     from pydantic._internal._model_construction import ModelMetaclass
 except ImportError:
     raise SetupError("el.datastore requires pydantic. Please install it before using el.datastore.")
