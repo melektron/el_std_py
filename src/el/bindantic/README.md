@@ -9,3 +9,6 @@
 # ToDo
 
 - Add support for bitfields (fields aligned at bit level)
+- Add support for nested structures
+- Add support for byte order config
+- Add support for arbitrary iterable types in arrays

@@ -14,15 +14,41 @@ bindantic.
 """
 
 import typing
+from ._deps import pydantic_core, pydantic
+if typing.TYPE_CHECKING:
+    from ._fields import BaseField
 
-from ._deps import pydantic_core
 
 BindanticUndefinedType = pydantic_core.PydanticUndefinedType
 BindanticUndefined = pydantic_core.PydanticUndefined
 
+type ByteOrder = typing.Literal[
+    "native-aligned",
+    "native",
+    "little-endian", 
+    "big-endian", 
+    "network"
+]
 
-if typing.TYPE_CHECKING:
-    from ._fields import BaseField
+class StructConfigDict(pydantic.ConfigDict, total=False):
+    """
+    Extension of pydantics ConfigDict adding struct specific 
+    options.
+    """
+
+    byte_order: ByteOrder
+    """
+    What byte order and alignment should be used when packing and unpacking structs.
+    If native alignment is required, use "native-aligned" which will use both native
+    byte order and alignment the the current systems CPU.
+    All other options have no alignment and pack the structure as closely as possible.
+    It is recommended to add padding manually if required.
+    The default option is "native" which means the system native byte order but no alignment.
+    "network" byte order is the same as "big-endian".
+    
+    See Python doc's for details: https://docs.python.org/3/library/struct.html#byte-order-size-and-alignment
+    """
+
 
 class FieldConfigItem[VT]:
     def __init__(self, value: VT) -> None:
@@ -44,15 +70,15 @@ class Encoding(FieldConfigItem[str]):
 
 
 @typing.final
-class FillDefault:
+class FillDefaultConstructor:
     pass
 
-class Filler(FieldConfigItem[typing.Any | type[FillDefault]]):
+class Filler(FieldConfigItem[typing.Any | type[FillDefaultConstructor]]):
     """
     Filler value for shorter arrays and strings. FillDefault
     will use the the default constructor with no parameters for filling
     """
-    def __init__(self, value: typing.Any | type[FillDefault] = FillDefault) -> None:
+    def __init__(self, value: typing.Any | type[FillDefaultConstructor] = FillDefaultConstructor) -> None:
         super().__init__(value)
 
 

@@ -47,10 +47,11 @@ from ._fields import (
     Padding,
     Array
 )
-from ._field_config import (
+from ._config import (
+    StructConfigDict,
     FieldConfigItem,
     Len,
     Encoding,
     Filler, 
-    FillDefault
+    FillDefaultConstructor
 )

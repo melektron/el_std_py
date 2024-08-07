@@ -18,5 +18,7 @@ try:
     import pydantic.fields
     import pydantic_core
     from pydantic._internal._model_construction import ModelMetaclass
+    import annotated_types
+
 except ImportError:
     raise SetupError("el.datastore requires pydantic. Please install it before using el.datastore.")

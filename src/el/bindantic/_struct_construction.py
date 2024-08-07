@@ -12,14 +12,15 @@ Handling of Struct class creation similar to and extending Pydantic's model cons
 """
 
 
+import struct
 import typing
 from typing import Callable, Any, Optional, dataclass_transform
 from copy import deepcopy
 from ._deps import pydantic, ModelMetaclass
-
 if typing.TYPE_CHECKING:
     from ._base_struct import BaseStruct
 from ._fields import BaseField, get_field_from_type_data
+from ._config import StructConfigDict
 
 PyStructBaseTypes = bytes | int | bool | float
 StructIntermediate = typing.Collection[PyStructBaseTypes] | PyStructBaseTypes
@@ -56,8 +57,6 @@ ARRAY_CAPABLE_TYPES: list[BinaryDataType] = [
     "char"
     "bool"
 ]
-
-
 
 
 # This decorator enables type hinting magic (https://stackoverflow.com/a/73988406)
@@ -116,7 +115,7 @@ class StructMetaclass(ModelMetaclass):
                 field
             )
             if struct_field is None:    # not a struct field
-                continue;
+                continue
             # if the field is an outlet, check that a corresponding
             # computed field exists and use it's name instead
             if struct_field.is_outlet:
@@ -124,19 +123,36 @@ class StructMetaclass(ModelMetaclass):
                     raise NameError(f"There is no computed field called '{struct_field.field_name}' to to supply outlet '{struct_field.outlet_name}'.")
             cls.struct_fields[struct_field.field_name] = struct_field
         
-        cls.__bindantic_struct_code__ = ""
+        # start struct string depending on byte order
+        match cls.model_config.get("byte_order"):
+            case "native-aligned":
+                cls.__bindantic_struct_code__ = "@"
+            case "native":
+                cls.__bindantic_struct_code__ = "="
+            case "little-endian":
+                cls.__bindantic_struct_code__ = "<"
+            case "big-endian":
+                cls.__bindantic_struct_code__ = ">"
+            case "network":
+                cls.__bindantic_struct_code__ = "!"
+            case _:
+                cls.__bindantic_struct_code__ = "="
 
+        cls.__bindantic_element_consumption__ = 0
+        cls.__bindantic_byte_consumption__ = 0
+
+        # collect all the fields to one single big struct
         for name, field in cls.struct_fields.items():
             # create structure string
             cls.__bindantic_struct_code__ += field.struct_code
-        
+            # count element and byte length
+            cls.__bindantic_element_consumption__ += field.element_consumption
+            cls.__bindantic_byte_consumption__ += field.bytes_consumption
 
-            
-
-        #inst.__signature__ = ClassAttribute(
-        #    '__signature__',
-        #    generate_pydantic_signature(init=inst.__init__, fields=model_fields, config_wrapper=config_wrapper),
-        #)
+        # create pre-compiled python structure
+        cls.__bindantic_struct_inst__ = struct.Struct(
+            cls.__bindantic_struct_code__
+        )
 
         return cls
     

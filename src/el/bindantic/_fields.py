@@ -17,8 +17,8 @@ import abc
 import enum
 from typing import Any, Annotated, override
 from copy import deepcopy
-from ._deps import pydantic
-from ._field_config import *
+from ._deps import pydantic, annotated_types
+from ._config import *
 
 
 PyStructBaseTypes = bytes | int | bool | float
@@ -179,14 +179,14 @@ class IntegerField(BaseField):
         self.struct_code = code
         self.signed = signed
 
-Uint8 = Annotated[int, IntegerField(1, "B", False)]
-Uint16 = Annotated[int, IntegerField(2, "H", False)]
-Uint32 = Annotated[int, IntegerField(4, "I", False)]
-Uint64 = Annotated[int, IntegerField(8, "Q", False)]
-Int8 = Annotated[int, IntegerField(1, "b", True)]
-Int16 = Annotated[int, IntegerField(2, "h", True)]
-Int32 = Annotated[int, IntegerField(4, "i", True)]
-Int64 = Annotated[int, IntegerField(8, "q", True)]
+Uint8 = Annotated[int, IntegerField(1, "B", False), pydantic.Field(ge=0, lt=2**8)]
+Uint16 = Annotated[int, IntegerField(2, "H", False), pydantic.Field(ge=0, lt=2**16)]
+Uint32 = Annotated[int, IntegerField(4, "I", False), pydantic.Field(ge=0, lt=2**32)]
+Uint64 = Annotated[int, IntegerField(8, "Q", False), pydantic.Field(ge=0, lt=2**64)]
+Int8 = Annotated[int, IntegerField(1, "b", True), pydantic.Field(ge=-2**7, lt=2**7)]
+Int16 = Annotated[int, IntegerField(2, "h", True), pydantic.Field(ge=-2**15, lt=2**15)]
+Int32 = Annotated[int, IntegerField(4, "i", True), pydantic.Field(ge=-2**31, lt=2**31)]
+Int64 = Annotated[int, IntegerField(8, "q", True), pydantic.Field(ge=-2**63, lt=2**63)]
 
 
 class EnumField[ET: enum.Enum](IntegerField):
@@ -202,23 +202,25 @@ class EnumField[ET: enum.Enum](IntegerField):
     #def _type_check(self) -> None:
     #    return issubclass(self.type_annotation, enum.Enum)
 
+    @override
     def unpacking_postprocessor(self, data: tuple[int, ...]) -> ET:
         return self.type_annotation(data[0])   # type_annotation should be the enum
 
+    @override
     def packing_preprocessor(self, field: ET) -> tuple[int, ...]:
         return (field.value, )  # get numerical enum value
 
 ET = typing.TypeVar("ET")
 
-EnumU8 = Annotated[ET, EnumField[ET](1, "B", False)]
-EnumU16 = Annotated[ET, EnumField[ET](2, "H", False)]
-EnumU32 = Annotated[ET, EnumField[ET](4, "I", False)]
-EnumU64 = Annotated[ET, EnumField[ET](8, "Q", False)]
-Enum8 = Annotated[ET, EnumField[ET](1, "b", True)]
-Enum16 = Annotated[ET, EnumField[ET](2, "h", True)]
-Enum32 = Annotated[ET, EnumField[ET](4, "i", True)]
-Enum64 = Annotated[ET, EnumField[ET](8, "q", True)]
-
+EnumU8 = Annotated[ET, EnumField[ET](1, "B", False), pydantic.Field(ge=0, lt=2**8)]
+EnumU16 = Annotated[ET, EnumField[ET](2, "H", False), pydantic.Field(ge=0, lt=2**16)]
+EnumU32 = Annotated[ET, EnumField[ET](4, "I", False), pydantic.Field(ge=0, lt=2**32)]
+EnumU64 = Annotated[ET, EnumField[ET](8, "Q", False), pydantic.Field(ge=0, lt=2**64)]
+Enum8 = Annotated[ET, EnumField[ET](1, "b", True), pydantic.Field(ge=-2**7, lt=2**7)]
+Enum16 = Annotated[ET, EnumField[ET](2, "h", True), pydantic.Field(ge=-2**15, lt=2**15)]
+Enum32 = Annotated[ET, EnumField[ET](4, "i", True), pydantic.Field(ge=-2**31, lt=2**31)]
+Enum64 = Annotated[ET, EnumField[ET](8, "q", True), pydantic.Field(ge=-2**63, lt=2**63)]
+# TODO: make range limits working here
 
 class FloatField(BaseField):
     def __init__(self, size: int, code: str) -> None:
@@ -268,10 +270,12 @@ class StringField(BaseField):
         self.encoding = self.config_options.get_with_error(self, Encoding, "utf-8")
         self.struct_code = f"{int(self.length)}s"
         self.bytes_consumption = self.length
-        
+
+    @override  
     def unpacking_postprocessor(self, data: tuple[bytes, ...]) -> str:
         return data[0].decode(self.encoding[0])  # decode bytes to string
 
+    @override
     def packing_preprocessor(self, field: str) -> tuple[bytes, ...]:
         return (field.encode(self.encoding), ) # encode string to bytes
 
@@ -327,10 +331,18 @@ class PaddingField(BaseField):
         #    self.pydantic_field.default = None
         #    self.pydantic_field.init = False
 
+    @override
+    def unpacking_postprocessor(self, data: tuple[PyStructBaseTypes, ...]) -> None:
+        return None
+    
+    @override
+    def packing_preprocessor(self, field: Any) -> tuple[PyStructBaseTypes, ...]:
+        return ()
+
 Padding = Annotated[None, PaddingField(), pydantic.Field(exclude=True, default=None, init=False)]
 
 
-class ArrayField[ET: BaseField](BaseField):
+class ArrayField(BaseField):
     """
     fixed length array of another binary capable type
     """
@@ -338,7 +350,7 @@ class ArrayField[ET: BaseField](BaseField):
         super().__init__()
         self.supported_py_types = (list, )
         
-        self.element_field: ET = ...
+        self.element_field: BaseField = ...
     
     @override
     def _type_check(self) -> None:
@@ -373,7 +385,8 @@ class ArrayField[ET: BaseField](BaseField):
         self.struct_code = "".join([self.element_field.struct_code] * self.length)
         self.bytes_consumption = self.length * self.element_field.bytes_consumption
         self.element_consumption = self.length * self.element_field.element_consumption
-        
+    
+    @override
     def unpacking_postprocessor(self, data: tuple[PyStructBaseTypes, ...]) -> typing.Iterable:
         # split up struct elements for each array element and post-process them.
         # A list of all processed array elements is returned
@@ -388,22 +401,25 @@ class ArrayField[ET: BaseField](BaseField):
             for i in range(self.length)
         )
 
+    @override
     def packing_preprocessor(self, field: typing.Iterable) -> tuple[Any, ...]:
+        # If the array is not complete in terms of size, attempt
+        # to add filler items
         if len(field) < self.length:
             if self.filler is BindanticUndefined:
                 raise ValueError(f"'{self.__class__.__name__}' '{self.field_name}' must be of size {self.length} but is only {len(field)} elements long and no Filler value was specified.")
             
             # add filler
             field = tuple(field) + ((
-                self.element_field.type_annotation() if self.filler is FillDefault else self.filler
+                self.element_field.type_annotation() if self.filler is FillDefaultConstructor else self.filler
             , ) * (self.length - len(field)))
 
         # generate struct elements for each array element and join them in one single tuple
         return sum((
-            self.element_field.packing_preprocessor(element)
-            for element in field
+            self.element_field.packing_preprocessor(field[i])
+            for i in range(self.length)
         ), ())
 
 
 ET = typing.TypeVar("ET")
-Array = Annotated[list[ET], ArrayField[ET]()]
+Array = Annotated[list[ET], ArrayField()]
