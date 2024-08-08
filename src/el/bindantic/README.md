@@ -8,11 +8,10 @@
 
 # Limitations
 
+- While multiple inheritance is not strictly prohibited, it is not officially supported either and field order may not be as expected.
 
 # ToDo
 
 - Add support for bitfields (fields aligned at bit level)
 - Add support for nested structures
-- Add support for byte order config
-- Add support for arbitrary iterable types in arrays
 - Add setting do disable constraints for array, string, int, and other types, selectively

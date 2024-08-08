@@ -1,5 +1,10 @@
+aioconsole==0.7.1
 annotated-types==0.7.0
--e git+https://github.com/melektron/el_py.git@ef98e0ba69175ae1f044c2deeaeb1dcdd3b0e1a2#egg=el_py
+-e git+https://github.com/melektron/el_py.git@c1d5abcfc4c15d693e2594088ad147823fc458c3#egg=el_py
+iniconfig==2.0.0
+packaging==24.1
+pluggy==1.5.0
 pydantic==2.8.2
 pydantic_core==2.20.1
+pytest==8.3.2
 typing_extensions==4.12.2
