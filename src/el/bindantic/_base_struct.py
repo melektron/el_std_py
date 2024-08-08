@@ -71,7 +71,6 @@ class BaseStruct(pydantic.BaseModel, metaclass=StructMetaclass):
 
     def __init__(self, /, **data: typing.Any) -> None:
         super().__init__(**data)
-        print(f"got config: {self.struct_fields}")
     
     def struct_dump_elements(self) -> tuple[PyStructBaseTypes, ...]:
         """

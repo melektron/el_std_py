@@ -45,13 +45,19 @@ from ._fields import (
     String,
     Bytes,
     Padding,
-    Array
+    Array,
+    ArrayTuple,
+    ArraySet,
+    ArrayFrozenSet,
+    ArrayDeque
 )
 from ._config import (
     StructConfigDict,
-    FieldConfigItem,
+    LenInfo,
+    EncodingInfo,
+    FillDefaultConstructor,
+    FillerInfo,
     Len,
     Encoding,
     Filler, 
-    FillDefaultConstructor
 )

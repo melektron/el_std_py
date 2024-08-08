@@ -15,6 +15,7 @@ import typing
 import dataclasses
 import abc
 import enum
+from collections import deque
 from typing import Any, Annotated, override
 from copy import deepcopy
 from ._deps import pydantic, annotated_types
@@ -45,11 +46,13 @@ class BaseField(abc.ABC):
         # the name of the field in the structure (or outlet source if field is an outlet)
         self.field_name: str = ...
         # the field info instance of the corresponding pydantic field
-        self.pydantic_field: pydantic.fields.FieldInfo | None = ...
+        self.pydantic_field: pydantic.fields.FieldInfo = ...
         # the actual python datatype to represent this field
         self.type_annotation: type = ...
         # any annotation metadata passed via typing.Annotated
         self.annotation_metadata: list[Any] = ...
+        # whether this field is a top level field in a struct or a nested field in an array
+        self.is_top_level: bool = ...
 
         # config options provided by user
         self.config_options = FieldConfigOptions()
@@ -69,17 +72,24 @@ class BaseField(abc.ABC):
         # how many bytes this field takes up in the structure (must be set)
         self.bytes_consumption: int = ...
 
-    def configure_struct_field(self, field_name: str, type_annotation: type, annotation_metadata: tuple[Any, ...], pydantic_field: pydantic.fields.FieldInfo | None) -> None:
+    def configure_struct_field(self, field_name: str, pydantic_field: pydantic.fields.FieldInfo, is_top_level: bool) -> None:
         """
         Called during struct construction to configure the field with all
-        additional information about it provided by pydantic
+        additional information about it provided by pydantic.
+
+        is_top_level==True indicates that the provided FieldInfo instance is
+        directly associated with a top-level field in a structure and can be
+        modified to change the behavior of pydantic field validation.
+        Non-top-level fields' FieldInfo instance is not associated with pydantic
+        and does therefor not support this behavior.
         """
         self.pydantic_field = pydantic_field
-        self.type_annotation = type_annotation
-        self.annotation_metadata = annotation_metadata
+        self.type_annotation = pydantic_field.annotation
+        self.annotation_metadata = pydantic_field.metadata
+        self.is_top_level = is_top_level
 
         # if this is a top level pydantic field we check for outlets
-        if field_name.endswith("_outlet") and self.pydantic_field is not None:
+        if field_name.endswith("_outlet") and self.is_top_level:
             self.outlet_name = field_name
             self.field_name = field_name.removesuffix("_outlet")
             self.is_outlet = True
@@ -87,19 +97,16 @@ class BaseField(abc.ABC):
             self.field_name = field_name
         
         # read any field config items from metadata
-        for meta_element in self.annotation_metadata:
-            if isinstance(meta_element, FieldConfigItem):
-                self.config_options.set_from_item(meta_element)
+        self.config_options.set_from_metadata(self.annotation_metadata)
         
         # if the field is an outlet (and a top level field), disable most of it's 
         # pydantic functions, as those are covered by the corresponding computed field
-        if self.is_outlet and self.pydantic_field is not None:
+        if self.is_outlet and self.is_top_level:
             self.pydantic_field.exclude = True
             self.pydantic_field.default = None
             self.pydantic_field.init = False
 
         self._type_check()
-
         self._configure_specialization()
  
     def _type_check(self) -> None:
@@ -138,21 +145,23 @@ class BaseField(abc.ABC):
         return (field, )
 
 
-def get_field_from_type_data(
+def get_field_from_field_info(
     field_name: str,
-    type_annotation: type,
-    annotation_metadata: tuple[Any, ...],
-    pydantic_field: pydantic.fields.FieldInfo | None
+    pydantic_field: pydantic.fields.FieldInfo,
+    is_top_level: bool
 ) -> BaseField | None:
     """
-    Processes the provided type information and metadata
+    Processes the provided type information and metadata from pydantic
     to extract and configure the appropriate structure
     field class instance to represent this field.
-    If the field is a top-level field in a structure (e.g. not 
-    an array element) the pydantic FieldInfo can optionally be
-    provided so the pydantic config can be adjusted.
+
+    is_top_level==True indicates that the provided FieldInfo instance is
+    directly associated with a top-level field in a structure and can be
+    modified to change the behavior of pydantic field validation.
+    Non-top-level fields' FieldInfo instance is not associated with pydantic
+    and does therefor not support this behavior.
     """
-    for meta_element in annotation_metadata:
+    for meta_element in pydantic_field.metadata:
         match meta_element:
             case BaseField():   # struct field found
                 # deepcopy the instance from annotations so the provided config is 
@@ -161,15 +170,15 @@ def get_field_from_type_data(
                 struct_field = deepcopy(meta_element)
                 # configure the field
                 struct_field.configure_struct_field(
-                    field_name, 
-                    type_annotation,
-                    annotation_metadata,
-                    pydantic_field  # pass on the optional
+                    field_name,
+                    pydantic_field,
+                    is_top_level
                 )
                 
                 return struct_field
     # TODO: add support for substructures
     return None # No metadata found to identify this as a struct field
+
 
 class IntegerField(BaseField):
     def __init__(self, size: int, code: str, signed: bool) -> None:
@@ -178,15 +187,23 @@ class IntegerField(BaseField):
         self.bytes_consumption = size
         self.struct_code = code
         self.signed = signed
+    
+    @staticmethod
+    def range_limit(signed: bool, bits: int) -> pydantic.fields.FieldInfo:
+        if signed:
+            bits -= 1
+            return pydantic.Field(ge=-(2**bits), lt=(2**bits))
+        else:
+            return pydantic.Field(ge=0, lt=(2**bits))
 
-Uint8 = Annotated[int, IntegerField(1, "B", False), pydantic.Field(ge=0, lt=2**8)]
-Uint16 = Annotated[int, IntegerField(2, "H", False), pydantic.Field(ge=0, lt=2**16)]
-Uint32 = Annotated[int, IntegerField(4, "I", False), pydantic.Field(ge=0, lt=2**32)]
-Uint64 = Annotated[int, IntegerField(8, "Q", False), pydantic.Field(ge=0, lt=2**64)]
-Int8 = Annotated[int, IntegerField(1, "b", True), pydantic.Field(ge=-2**7, lt=2**7)]
-Int16 = Annotated[int, IntegerField(2, "h", True), pydantic.Field(ge=-2**15, lt=2**15)]
-Int32 = Annotated[int, IntegerField(4, "i", True), pydantic.Field(ge=-2**31, lt=2**31)]
-Int64 = Annotated[int, IntegerField(8, "q", True), pydantic.Field(ge=-2**63, lt=2**63)]
+Uint8 = Annotated[int, IntegerField(1, "B", False), IntegerField.range_limit(False, 8)]
+Uint16 = Annotated[int, IntegerField(2, "H", False), IntegerField.range_limit(False, 16)]
+Uint32 = Annotated[int, IntegerField(4, "I", False), IntegerField.range_limit(False, 24)]
+Uint64 = Annotated[int, IntegerField(8, "Q", False), IntegerField.range_limit(False, 32)]
+Int8 = Annotated[int, IntegerField(1, "b", True), IntegerField.range_limit(True, 8)]
+Int16 = Annotated[int, IntegerField(2, "h", True), IntegerField.range_limit(True, 16)]
+Int32 = Annotated[int, IntegerField(4, "i", True), IntegerField.range_limit(True, 24)]
+Int64 = Annotated[int, IntegerField(8, "q", True), IntegerField.range_limit(True, 32)]
 
 
 class EnumField[ET: enum.Enum](IntegerField):
@@ -195,12 +212,43 @@ class EnumField[ET: enum.Enum](IntegerField):
     """
     def __init__(self, size: int, code: str, signed: bool) -> None:
         super().__init__(size, code, signed)
-        self.supported_py_types = (enum.Enum, )
+        self.supported_py_types = (enum.Enum, enum.IntEnum, enum.Flag, enum.IntFlag) # see _type_check() for details
+        self.type_annotation: enum.Enum
+    
+    @classmethod
+    def check_in_range(cls, v: enum.Enum, signed: bool, bits: int, fn: str = "") -> None:
+        if signed:
+            ge=-(2 ** (bits - 1))
+            lt=(2 ** (bits - 1))
+        else:
+            ge=0
+            lt=(2 ** bits)
+        
+        if not (v.value >= ge and v.value < lt):
+            field_name_part = f" '{fn}'" if fn != "" else ""
+            value_part = f"{v.__class__.__name__}.{v.name} = {v.value}" if isinstance(v, (enum.IntEnum, enum.IntFlag, )) else f"{v.name} = {v.value}"
+            raise ValueError(f"'{cls.__name__}'{field_name_part} value {value_part} overflows the available range for {"" if signed else "U"}int{bits} ({ge} <= val <= {lt - 1})")
 
-    # TODO: see if we can check with typevar
-    #@override
-    #def _type_check(self) -> None:
-    #    return issubclass(self.type_annotation, enum.Enum)
+    @staticmethod
+    def range_limit(signed: bool, bits: int) -> pydantic.AfterValidator:
+        def check(v: enum.Enum) -> enum.Enum:
+            EnumField.check_in_range(v, signed, bits)
+            return v
+        return pydantic.AfterValidator(check)
+
+    @override
+    def _type_check(self) -> None:
+        if (
+            not issubclass(self.type_annotation, self.supported_py_types)
+            or issubclass(self.type_annotation, enum.StrEnum)
+        ): # don't allow string value types
+            raise TypeError(f"'{self.__class__.__name__}' '{self.field_name}' must resolve to one of {self.supported_py_types}, not '{self.type_annotation}'")
+        
+    @override
+    def _configure_specialization(self) -> None:
+        # make sure all values are in range already during structure creation
+        for e in self.type_annotation:
+            self.check_in_range(e, self.signed, self.bytes_consumption * 8)
 
     @override
     def unpacking_postprocessor(self, data: tuple[int, ...]) -> ET:
@@ -212,15 +260,15 @@ class EnumField[ET: enum.Enum](IntegerField):
 
 ET = typing.TypeVar("ET")
 
-EnumU8 = Annotated[ET, EnumField[ET](1, "B", False), pydantic.Field(ge=0, lt=2**8)]
-EnumU16 = Annotated[ET, EnumField[ET](2, "H", False), pydantic.Field(ge=0, lt=2**16)]
-EnumU32 = Annotated[ET, EnumField[ET](4, "I", False), pydantic.Field(ge=0, lt=2**32)]
-EnumU64 = Annotated[ET, EnumField[ET](8, "Q", False), pydantic.Field(ge=0, lt=2**64)]
-Enum8 = Annotated[ET, EnumField[ET](1, "b", True), pydantic.Field(ge=-2**7, lt=2**7)]
-Enum16 = Annotated[ET, EnumField[ET](2, "h", True), pydantic.Field(ge=-2**15, lt=2**15)]
-Enum32 = Annotated[ET, EnumField[ET](4, "i", True), pydantic.Field(ge=-2**31, lt=2**31)]
-Enum64 = Annotated[ET, EnumField[ET](8, "q", True), pydantic.Field(ge=-2**63, lt=2**63)]
-# TODO: make range limits working here
+EnumU8 = Annotated[ET, EnumField[ET](1, "B", False), EnumField.range_limit(False, 8)]
+EnumU16 = Annotated[ET, EnumField[ET](2, "H", False), EnumField.range_limit(False, 16)]
+EnumU32 = Annotated[ET, EnumField[ET](4, "I", False), EnumField.range_limit(False, 24)]
+EnumU64 = Annotated[ET, EnumField[ET](8, "Q", False), EnumField.range_limit(False, 32)]
+Enum8 = Annotated[ET, EnumField[ET](1, "b", True), EnumField.range_limit(True, 8)]
+Enum16 = Annotated[ET, EnumField[ET](2, "h", True), EnumField.range_limit(True, 16)]
+Enum32 = Annotated[ET, EnumField[ET](4, "i", True), EnumField.range_limit(True, 24)]
+Enum64 = Annotated[ET, EnumField[ET](8, "q", True), EnumField.range_limit(True, 32)]
+
 
 class FloatField(BaseField):
     def __init__(self, size: int, code: str) -> None:
@@ -266,8 +314,8 @@ class StringField(BaseField):
     
     @override
     def _configure_specialization(self) -> None:
-        self.length = self.config_options.get_with_error(self, Len)
-        self.encoding = self.config_options.get_with_error(self, Encoding, "utf-8")
+        self.length = self.config_options.get_with_error(self, LenInfo)
+        self.encoding = self.config_options.get_with_error(self, EncodingInfo, "utf-8")
         self.struct_code = f"{int(self.length)}s"
         self.bytes_consumption = self.length
 
@@ -294,7 +342,7 @@ class BytesField(BaseField):
     
     @override
     def _configure_specialization(self) -> None:
-        self.length = self.config_options.get_with_error(self, Len)
+        self.length = self.config_options.get_with_error(self, LenInfo)
         self.struct_code = f"{int(self.length)}s"
         self.bytes_consumption = self.length
         
@@ -318,18 +366,11 @@ class PaddingField(BaseField):
     
     @override
     def _configure_specialization(self) -> None:
-        self.length = self.config_options.get_with_error(self, Len)
+        self.length = self.config_options.get_with_error(self, LenInfo)
         self.struct_code = f"{int(self.length)}x"
         self.bytes_consumption = self.length
         # padding bytes are not converted to any python objects
         self.element_consumption = 0
-
-        # here this field could be disabled for pydantic but for now 
-        # this is instead done in the padding annotation shortcut
-        #if self.pydantic_field is not None:
-        #    self.pydantic_field.exclude = True
-        #    self.pydantic_field.default = None
-        #    self.pydantic_field.init = False
 
     @override
     def unpacking_postprocessor(self, data: tuple[PyStructBaseTypes, ...]) -> None:
@@ -348,7 +389,7 @@ class ArrayField(BaseField):
     """
     def __init__(self) -> None:
         super().__init__()
-        self.supported_py_types = (list, )
+        self.supported_py_types = (list, tuple, set, frozenset, deque)
         
         self.element_field: BaseField = ...
     
@@ -363,16 +404,20 @@ class ArrayField(BaseField):
         except KeyError:
             raise TypeError(f"'{self.__class__.__name__}' '{self.field_name}' must be subscripted with an element type")
         
-        try:
-            assert issubclass(typing.get_origin(element_type_annotation), (Annotated, ))   # TODO: add support for substructures
-            self.element_field = get_field_from_type_data(
-                self.field_name + ".__element__",
-                typing.get_args(element_type_annotation)[0],
-                element_type_annotation.__metadata__,
-                None    # not a top level struct field
-            )
-            assert self.element_field is not None
-        except AssertionError:
+        # TODO: make sure this also works for substructures
+        # create a pydantic field info by passing the entire annotation. If the type is annotated, 
+        # this does all the heavy of reading the annotated metadata, processing pydantic related 
+        # field info (not relevant for pydantic here because this is only our instance but we may
+        # also require some of the parsed information) and saving datatype and annotation metadata
+        # in the same way it is done with top level pydantic fields. This way, the get_element_from_type_data
+        # function can create a bindantic field from the data.
+        sub_field_info = pydantic.fields.FieldInfo.from_annotation(element_type_annotation)
+        self.element_field = get_field_from_field_info(
+            self.field_name + ".__element__",
+            sub_field_info,
+            False
+        )
+        if self.element_field is None:
             raise TypeError(f"'{self.__class__.__name__}' '{self.field_name}' must be subscripted with a binary-capable field type, not '{element_type_annotation}'")
 
         if isinstance(self.element_field, PaddingField):
@@ -380,8 +425,8 @@ class ArrayField(BaseField):
 
     @override
     def _configure_specialization(self) -> None:
-        self.length = self.config_options.get_with_error(self, Len)
-        self.filler: Any | BindanticUndefinedType = self.config_options.get_with_error(self, Filler, BindanticUndefined)
+        self.length = self.config_options.get_with_error(self, LenInfo)
+        self.filler: Any | BindanticUndefinedType = self.config_options.get_with_error(self, FillerInfo, BindanticUndefined)
         self.struct_code = "".join([self.element_field.struct_code] * self.length)
         self.bytes_consumption = self.length * self.element_field.bytes_consumption
         self.element_consumption = self.length * self.element_field.element_consumption
@@ -403,6 +448,9 @@ class ArrayField(BaseField):
 
     @override
     def packing_preprocessor(self, field: typing.Iterable) -> tuple[Any, ...]:
+        # coerce any iterables to tuple before serialization, so even ones that don't support
+        # subscription such as "set" can still be converted to ordered array
+        field = tuple(field)
         # If the array is not complete in terms of size, attempt
         # to add filler items
         if len(field) < self.length:
@@ -410,7 +458,7 @@ class ArrayField(BaseField):
                 raise ValueError(f"'{self.__class__.__name__}' '{self.field_name}' must be of size {self.length} but is only {len(field)} elements long and no Filler value was specified.")
             
             # add filler
-            field = tuple(field) + ((
+            field = field + ((
                 self.element_field.type_annotation() if self.filler is FillDefaultConstructor else self.filler
             , ) * (self.length - len(field)))
 
@@ -423,3 +471,7 @@ class ArrayField(BaseField):
 
 ET = typing.TypeVar("ET")
 Array = Annotated[list[ET], ArrayField()]
+ArrayTuple = Annotated[tuple[ET, ...], ArrayField()]
+ArraySet = Annotated[set[ET], ArrayField()]
+ArrayFrozenSet = Annotated[frozenset[ET], ArrayField()]
+ArrayDeque = Annotated[deque[ET], ArrayField()]

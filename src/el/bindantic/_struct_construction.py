@@ -19,7 +19,7 @@ from copy import deepcopy
 from ._deps import pydantic, ModelMetaclass
 if typing.TYPE_CHECKING:
     from ._base_struct import BaseStruct
-from ._fields import BaseField, get_field_from_type_data
+from ._fields import BaseField, get_field_from_field_info
 from ._config import StructConfigDict
 
 PyStructBaseTypes = bytes | int | bool | float
@@ -92,9 +92,6 @@ class StructMetaclass(ModelMetaclass):
             #print("Creating 'Struct' class")
             return super().__new__(mcs, cls_name, bases, namespace)
         
-        # another class
-        print(f"\nCreating struct subclass {cls_name}")
-        #print(f"{mcs=}, {cls_name=}, {bases=}, {namespace=}")
         # run pydantic's ModelMetaclass' __new__ method to create a regular pydantic model
         # as well as do the heavy lifting of collecting fields and reading annotations.
         cls = super().__new__(mcs, cls_name, bases, namespace, **kwargs)
@@ -108,11 +105,10 @@ class StructMetaclass(ModelMetaclass):
         for field_name, field in cls.model_fields.items():
             # deepcopy so config is kept but multiple fields with the same
             # shortcut type-alias don't share a single field instance
-            struct_field = get_field_from_type_data(
-                field_name, 
-                field.annotation,
-                field.metadata,
-                field
+            struct_field = get_field_from_field_info(
+                field_name,
+                field,
+                True
             )
             if struct_field is None:    # not a struct field
                 continue

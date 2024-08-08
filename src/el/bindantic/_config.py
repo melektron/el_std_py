@@ -14,7 +14,7 @@ bindantic.
 """
 
 import typing
-from ._deps import pydantic_core, pydantic
+from ._deps import pydantic_core, pydantic, annotated_types
 if typing.TYPE_CHECKING:
     from ._fields import BaseField
 
@@ -50,6 +50,36 @@ class StructConfigDict(pydantic.ConfigDict, total=False):
     """
 
 
+"""
+== Bindantic struct field configuration ==
+
+Bindantic needs to have the ability to configure options for fields.
+Some of the options have to work together with existing Pydantic features
+while some are exclusive to Bindantic structs.
+
+For this reason, there Bindantic defines config functions that return a 
+config info object that can then be parsed during model creation (similar
+to the pydantic.Field()).
+
+Unlike Pydantic, Bindantic only supports configuration via annotation, not via
+attribute assignment, although some options might still work with assignment
+because they use Pydantic FieldInfo in the background which is parsed by Pydantic.
+
+The Bindantic config functions only serve one purpose each, so you may have to combine
+multiple functions to reach the desired configuration.
+Some of these function which also have an effect on existing pydantic features return
+pydantic.FieldInfo. Those are simply a shortcut for a common config required for binary
+structs. 
+Others return an instance of a subclass of bindantic.FieldConfigItem. These options
+are specific to Bindantic and are parsed by Bindantic itself (Pydantic is still responsible
+for metadata collection)
+
+Internally during struct construction, all metadata is read through and all FieldConfigItems
+and other elements that are pydantic compatible are read out and converted into FieldConfigItems
+that are stored in the FieldConfigOptions instance of each field.
+"""
+
+
 class FieldConfigItem[VT]:
     def __init__(self, value: VT) -> None:
         super().__init__()
@@ -57,37 +87,92 @@ class FieldConfigItem[VT]:
     pass
 
 
-class Len(FieldConfigItem[int]):
-    """
-    Length for Array, String, Bytes, Padding
-    """
+class LenInfo(FieldConfigItem[int]):
+    pass
 
-
-class Encoding(FieldConfigItem[str]):
-    """
-    String encoding
-    """
-
+class EncodingInfo(FieldConfigItem[str]):
+    pass
 
 @typing.final
 class FillDefaultConstructor:
     pass
 
-class Filler(FieldConfigItem[typing.Any | type[FillDefaultConstructor]]):
-    """
-    Filler value for shorter arrays and strings. FillDefault
-    will use the the default constructor with no parameters for filling
-    """
-    def __init__(self, value: typing.Any | type[FillDefaultConstructor] = FillDefaultConstructor) -> None:
+class FillerInfo(FieldConfigItem[typing.Any | type[FillDefaultConstructor]]):
+    def __init__(self, value: typing.Any | type[FillDefaultConstructor]) -> None:
         super().__init__(value)
 
 
+def Len(val: int, *, min: int | typing.Literal["same"] = 0, ignore: bool = False) -> pydantic.fields.FieldInfo | LenInfo:
+    """
+    Length for Array, String, Bytes, Padding.
+    This specifies how many elements the array must be able to hold. The structure
+    will always contain enough space to hold this maximum amount of elements.
+
+    By default, this also specifies the maximum size for pydantic, meaning that arrays
+    greater than this size will cause a validation error. 
+    
+    If 'min' is set to a value other than 0, a minimum size for pydantic is defined causing pydantic to 
+    raise a validation error for any sequences shorter than the full array/string size. If set to
+    "same", 'val' will be used as the minimum, effectively enforcing the sequence to have the exact specified
+    size.
+
+    If the 'ignore' option is set to True,
+    this behavior is disabled and pydantic will not enforce any length requirements when validating.
+    In this case, the 'min' option has no effect.
+    When packing, too long sequences will be truncated to fit in the structure.
+
+    Params:
+        val: length of the binary sequence in number of elements
+        min: optional minimum sequence length
+        ignore: whether to ignore length requirements during validation
+    """
+    if ignore:
+        return LenInfo(val)
+    elif min == 0:
+        return pydantic.Field(max_length=val)
+    else:
+        return pydantic.Field(max_length=val, min_length=(val if min == "same" else min))
+
+def Encoding(val: str) -> EncodingInfo:
+    """
+    String encoding
+    """
+    return EncodingInfo(val)
+
+def Filler(val: typing.Any | type[FillDefaultConstructor] = FillDefaultConstructor) -> FillerInfo:
+    """
+    Filler value for shorter arrays and strings. FillDefaultConstructor
+    will use the the default constructor with no parameters for filling
+    """
+    return FillerInfo(val)
+
+
 class FieldConfigOptions:
+    """
+    Internal class used by bindantic fields to access config options
+    """
     def __init__(self) -> None:
         self.items: dict[type[FieldConfigItem], FieldConfigItem] = {}
     
     def set_from_item(self, config_item: FieldConfigItem) -> None:
         self.items[type(config_item)] = config_item
+    
+    def set_from_metadata(self, metadata: typing.Iterable[typing.Any]) -> None:
+        """
+        extracts all available configuration items from annotation metadata.
+        The annotation metadata should already be collected by pydantic so that
+        it contains pre-processed values used by pydantic.
+        """
+        for meta_element in metadata:
+            match meta_element:
+
+                # config items passed directly as annotation
+                case FieldConfigItem():
+                    self.set_from_item(meta_element)
+
+                # maximum length (from pydantic) defines the binary length.
+                case annotated_types.MaxLen():
+                    self.set_from_item(LenInfo(meta_element.max_length))
     
     def get_with_error[VT](self, field: "BaseField", opt: type[FieldConfigItem[VT]], default: VT | None = None) -> VT:
         """
@@ -99,7 +184,7 @@ class FieldConfigOptions:
         elif default is not None:
             return default
         else:
-            raise TypeError(f"'{field.__class__.__name__}' '{field.field_name}' is missing required config option: '{opt.__name__}'")
+            raise TypeError(f"'{field.__class__.__name__}' '{field.field_name}' is missing required config option: '{opt.__name__.removesuffix("Info")}'")
 
 
 
