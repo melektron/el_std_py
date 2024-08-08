@@ -45,7 +45,7 @@ from ._fields import (
     String,
     Bytes,
     Padding,
-    Array,
+    ArrayList,
     ArrayTuple,
     ArraySet,
     ArrayFrozenSet,

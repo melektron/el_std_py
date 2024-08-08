@@ -132,7 +132,7 @@ class BaseField(abc.ABC):
 
         Can be overridden by subclasses to implement specialized behavior.
         """
-        return data
+        return data[0]
     
     def packing_preprocessor(self, field: Any) -> tuple[PyStructBaseTypes, ...]:         # Callable[[Any], PyStructBaseTypes] = lambda field: field
         """
@@ -303,7 +303,8 @@ Bool = Annotated[bool, BoolField()]
 
 class StringField(BaseField):
     """
-    fixed length string (bytes converted to string)
+    fixed length string (bytes up to the first null byte are 
+    converted to string and any information past that is discarded)
     """
     def __init__(self) -> None:
         super().__init__()
@@ -321,7 +322,11 @@ class StringField(BaseField):
 
     @override  
     def unpacking_postprocessor(self, data: tuple[bytes, ...]) -> str:
-        return data[0].decode(self.encoding[0])  # decode bytes to string
+        string_portions = data[0].split(b"\0")
+        if len(string_portions) == 0:
+            return ""
+        else:
+            return string_portions[0].decode(self.encoding)  # decode bytes to string
 
     @override
     def packing_preprocessor(self, field: str) -> tuple[bytes, ...]:
@@ -332,7 +337,8 @@ String = Annotated[str, StringField()]
 
 class BytesField(BaseField):
     """
-    fixed length byte array (not converted to string)
+    fixed length byte array (not converted to string, all
+    bytes are preserved as is)
     """
     def __init__(self) -> None:
         super().__init__()
@@ -470,7 +476,7 @@ class ArrayField(BaseField):
 
 
 ET = typing.TypeVar("ET")
-Array = Annotated[list[ET], ArrayField()]
+ArrayList = Annotated[list[ET], ArrayField()]
 ArrayTuple = Annotated[tuple[ET, ...], ArrayField()]
 ArraySet = Annotated[set[ET], ArrayField()]
 ArrayFrozenSet = Annotated[frozenset[ET], ArrayField()]

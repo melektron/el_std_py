@@ -12,13 +12,22 @@ Base class of all structures which provides combined Pydantic Model and Binary S
 functionality
 """
 
+import sys
 import typing
 import struct
 from typing import ClassVar
 from ._deps import pydantic
 from ._struct_construction import StructMetaclass, PyStructBaseTypes
-from ._fields import BaseField
+from ._fields import BaseField, PaddingField
 from ._config import StructConfigDict
+
+
+class StructPackingError(Exception):
+    """
+    Error when packing or unpacking structure data and
+    preprocessing/postprocessing it into python objects.
+    """
+    pass
 
 
 class BaseStruct(pydantic.BaseModel, metaclass=StructMetaclass):
@@ -80,18 +89,95 @@ class BaseStruct(pydantic.BaseModel, metaclass=StructMetaclass):
         bytes.
         """
         # concatenate all the tuples of elements provided by the individual fields
-        return sum((
-            field.packing_preprocessor(getattr(self, name))
-            for name, field
-            in self.struct_fields.items()
-        ), ())
+        try:
+            return sum((
+                field.packing_preprocessor(getattr(self, name))
+                for name, field
+                in self.struct_fields.items()
+            ), ())
+        except Exception as e:
+            raise StructPackingError(str(e))
     
     def struct_dump_bytes(self) -> bytes:
         """
         Packs the struct into its binary representation and
         returns a bytes object of corresponding size.
         """
-        return self.__bindantic_struct_inst__.pack(
-            *(self.struct_dump_elements())
-        )
+        try:
+            return self.__bindantic_struct_inst__.pack(
+                *(self.struct_dump_elements())
+            )
+        except struct.error as e:
+            raise StructPackingError(str(e))
+
+    @classmethod
+    def struct_validate_elements(cls, elements: tuple[PyStructBaseTypes, ...]) -> typing.Self:
+        """
+        Postprocesses and then validates the structure from the provided
+        structure elements. These are the elements that would be returned
+        by struct.unpack(). 
+        
+        After the elements have been processed into their python types, they
+        are validated by pydantic to apply all other higher level constraints.
+
+        Params:
+            elements: the structure elements to load the data from
+        
+        Raises:
+            StructPackingError: if struct postprocessing fails
+            pydantic.ValidationError: if pydantic validation fails
+        
+        Returns:
+            the validated structure instance
+        """
+        output_val_dict: dict[str, typing.Any] = {}
+        try:
+            # let all fields consume their elements
+            element_offset: int = 0
+            for name, field in cls.struct_fields.items():
+                # padding doesn't consume any elements
+                if isinstance(field, PaddingField):
+                    continue
+                # consume elements
+                field_elements = elements[element_offset : (element_offset + field.element_consumption)]
+                element_offset += field.element_consumption
+                # outlet fields consume elements but the data is not processed as it
+                # is instead provided by computed fields
+                if field.is_outlet:
+                    continue
+                # preprocess the data into the desired python object
+                output_val_dict[name] = field.unpacking_postprocessor(field_elements)
+        
+        except Exception as e:
+            raise StructPackingError(str(e))
+            
+        return cls.model_validate(output_val_dict)
+
+    @classmethod
+    def struct_validate_bytes(cls, data: bytes | bytearray) -> typing.Self:
+        """
+        Unpacks the structure from a byte buffer, postprocesses and validates
+        it and then returns the new structure instance. 
+        
+        Internally this makes use of struct_validate_elements() which
+        is called after unpacking the structure.
+        
+        Params:
+            data: the binary representation of the structure
+        
+        Raises:
+            StructPackingError: if struct postprocessing or unpacking fails
+            pydantic.ValidationError: if pydantic validation fails
+        
+        Returns:
+            the validated structure instance
+        """
+        
+        try:
+            return cls.struct_validate_elements(
+                cls.__bindantic_struct_inst__.unpack(data)
+            )
+        except struct.error as e:
+            raise StructPackingError(str(e))
+
 
