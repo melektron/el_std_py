@@ -14,6 +14,7 @@ tests for bindantic
 import pytest
 import enum
 import pydantic
+import annotated_types
 from collections import deque
 from typing import Annotated, Any
 import typing
@@ -38,6 +39,10 @@ class KnownGoodEnumSigned(enum.Enum):
 
 ## Common testing functions ##
 
+def get_actual_type(tp: Any) -> Any:
+    origin = typing.get_origin(tp)
+    return origin if origin is not None else tp
+
 def assert_general_field_checks(
     f: BaseField, 
     annotation_type: type,
@@ -50,7 +55,7 @@ def assert_general_field_checks(
 ):
     assert f.type_annotation is f.pydantic_field.annotation
     assert f.annotation_metadata is f.pydantic_field.metadata
-    assert f.type_annotation is annotation_type
+    assert get_actual_type(f.type_annotation) is annotation_type
     assert f.field_name == field_name
     assert f.is_top_level == top_level
     assert f.is_outlet == outlet
@@ -62,15 +67,24 @@ def assert_general_field_checks(
 def assert_validation_error(
     exc_info: pytest.ExceptionInfo[pydantic.ValidationError], 
     type: str, 
-    input: Any, 
+    input: Any | None = None, 
     ctx: dict[str, Any] | None = None
 ):
     e = exc_info.value
     assert e.error_count() == 1
     assert e.errors()[0]["type"] == type
-    assert e.errors()[0]["input"] == input
+    if input is not None: 
+        assert e.errors()[0]["input"] == input
     if ctx is not None:
         assert e.errors()[0]["ctx"] == ctx
+
+def assert_missing_config_error(
+    exc_info: pytest.ExceptionInfo[pydantic.ValidationError], 
+    item: str, 
+):
+    e = str(exc_info.value).lower()
+    assert "missing required config option" in e
+    assert item.lower() in e
 
 
 ## Integer testing
@@ -249,6 +263,7 @@ def assert_enum_out_of_range_error(
     assert "overflows".lower() in msg
     assert "Limit.FIRST = ".lower() in msg  # this ensures that the enum identifier is properly formatted, even for IntEnum and derivatives
     assert int_type.lower() in msg
+
 
 def test_create_struct_enumU8():
     class TestStructure(BaseStruct):
@@ -582,6 +597,440 @@ def test_struct_enum_test_str():
 
 ## Float Testing ##
 
+def test_create_struct_float32():
+    class TestStructure(BaseStruct):
+        some_field: Float32
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), FloatField)
+    assert_general_field_checks(f, float, "some_field", True, False, "f", 1, 4)
+
+    inst = TestStructure(some_field=2)     # cast to float
+    assert type(inst.some_field) is float
+    assert inst.some_field == 2.0
+
+
+def test_create_struct_float64():
+    class TestStructure(BaseStruct):
+        some_field: Float64
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), FloatField)
+    assert_general_field_checks(f, float, "some_field", True, False, "d", 1, 8)
+
+    inst = TestStructure(some_field=2)     # cast to float
+    assert type(inst.some_field) is float
+    assert inst.some_field == 2.0
+
+
+## Char testing ##
+
+def test_create_struct_char():
+    class TestStructure(BaseStruct):
+        some_field: Char
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), CharField)
+    assert_general_field_checks(f, str, "some_field", True, False, "c", 1, 1)
+    # check that the pydantic length constraint is present
+    assert any((m.max_length == 1 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
+    assert any((m.min_length == 1 if isinstance(m, annotated_types.MinLen) else False) for m in f.annotation_metadata)
+
+    inst = TestStructure(some_field="A")    # valid char
+    assert type(inst.some_field) is str
+    assert inst.some_field == "A"
+    
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field="AB")  # too long
+    assert_validation_error(exc_info, "string_too_long", "AB")
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field="")    # too short
+    assert_validation_error(exc_info, "string_too_short", "")
+
+
+## Bool testing ##
+
+def test_create_struct_bool():
+    class TestStructure(BaseStruct):
+        some_field: Bool
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), BoolField)
+    assert_general_field_checks(f, bool, "some_field", True, False, "?", 1, 1)
+
+    inst = TestStructure(some_field=1)    # coerced to bool
+    assert type(inst.some_field) is bool
+    assert inst.some_field == True
+    inst = TestStructure(some_field="1")    # coerced to bool
+    assert type(inst.some_field) is bool
+    assert inst.some_field == True
+    inst = TestStructure(some_field=False)
+    assert type(inst.some_field) is bool
+    assert inst.some_field == False
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field="2")    # not coercible to bool
+    assert_validation_error(exc_info, "bool_parsing", "2")
+    
+
+## Bytes testing ##
+
+def test_create_struct_bytes_default():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[Bytes, Len(5)]
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), BytesField)
+    assert_general_field_checks(f, bytes, "some_field", True, False, "5s", 1, 5)
+    # check that the pydantic length constraint for max is present but not min by default
+    assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
+    assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
+
+    inst = TestStructure(some_field=b"Hihi")    # valid bytes
+    assert type(inst.some_field) is bytes
+    assert inst.some_field == b"Hihi"
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        inst = TestStructure(some_field=b"Hihihi")   # too long
+    assert_validation_error(exc_info, "bytes_too_long", b"Hihihi")
+
+
+def test_create_struct_bytes_no_len():
+    # bytes without length must fail
+    with pytest.raises(TypeError) as exc_info:
+        class TestStructure(BaseStruct):
+            some_field: Bytes
+    assert_missing_config_error(exc_info, "Len")
+
+
+def test_create_struct_bytes_exact():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[Bytes, Len(5, min="same")]
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), BytesField)
+
+    # should have both min and max
+    assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
+    assert any((m.min_length == 5 if isinstance(m, annotated_types.MinLen) else False) for m in f.annotation_metadata)
+    
+    inst = TestStructure(some_field=b"Hihia")    # valid bytes
+    assert type(inst.some_field) is bytes
+    assert inst.some_field == b"Hihia"
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        inst = TestStructure(some_field=b"Hihi")   # too short
+    assert_validation_error(exc_info, "bytes_too_short", b"Hihi")
+
+
+def test_create_struct_bytes_explicit_min():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[Bytes, Len(5, min=3)]
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), BytesField)
+
+    # should have both min and max
+    assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
+    assert any((m.min_length == 3 if isinstance(m, annotated_types.MinLen) else False) for m in f.annotation_metadata)
+    
+    inst = TestStructure(some_field=b"Hihi")    # valid bytes
+    assert type(inst.some_field) is bytes
+    assert inst.some_field == b"Hihi"
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        inst = TestStructure(some_field=b"Hi")   # too short
+    assert_validation_error(exc_info, "bytes_too_short", b"Hi")
+
+
+def test_create_struct_bytes_ignore_with_min():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[Bytes, Len(5, min="same", ignore=True)]
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), BytesField)
+
+    # should have neither min nor max but instead custom leninfo
+    assert not any(isinstance(m, annotated_types.MaxLen) for m in f.annotation_metadata)
+    assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
+    assert any(isinstance(m, LenInfo) for m in f.annotation_metadata)
+    
+    inst = TestStructure(some_field=b"Hihia6<s")    # still valid
+    assert type(inst.some_field) is bytes
+    assert inst.some_field == b"Hihia6<s"
+    inst.struct_dump_elements() # should not error
+
+    inst = TestStructure(some_field=b"Hi")    # still valid
+    assert type(inst.some_field) is bytes
+    assert inst.some_field == b"Hi"
+    inst.struct_dump_elements() # should not error
+
+
+def test_create_struct_bytes_ignore():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[Bytes, Len(5, ignore=True)]
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), BytesField)
+
+    # should have neither min nor max but instead custom leninfo
+    assert not any(isinstance(m, annotated_types.MaxLen) for m in f.annotation_metadata)
+    assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
+    assert any(isinstance(m, LenInfo) for m in f.annotation_metadata)
+    inst = TestStructure(some_field=b"Hihia6<s")    # still valid
+    assert type(inst.some_field) is bytes
+    assert inst.some_field == b"Hihia6<s"
+    inst.struct_dump_elements() # should not error
+
+    inst = TestStructure(some_field=b"Hi")    # still valid
+    assert type(inst.some_field) is bytes
+    assert inst.some_field == b"Hi"
+    inst.struct_dump_elements() # should not error
+
+
+## String testing ##
+
+def test_create_struct_string_default():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[String, Len(5)]
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), StringField)
+    assert_general_field_checks(f, str, "some_field", True, False, "5s", 1, 5)
+    # check that the pydantic length constraint for max is present but not min by default
+    assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
+    assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
+
+    inst = TestStructure(some_field="Hihi")    # valid string
+    assert type(inst.some_field) is str
+    assert inst.some_field == "Hihi"
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        inst = TestStructure(some_field="Hihihi")   # too long
+    assert_validation_error(exc_info, "string_too_long", "Hihihi")
+
+
+def test_create_struct_string_no_len():
+    # string without length must fail
+    with pytest.raises(TypeError) as exc_info:
+        class TestStructure(BaseStruct):
+            some_field: String
+    assert_missing_config_error(exc_info, "Len")
+
+
+def test_create_struct_string_exact():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[String, Len(5, min="same")]
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), StringField)
+
+    # should have both min and max
+    assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
+    assert any((m.min_length == 5 if isinstance(m, annotated_types.MinLen) else False) for m in f.annotation_metadata)
+    
+    inst = TestStructure(some_field="Hihia")    # valid string
+    assert type(inst.some_field) is str
+    assert inst.some_field == "Hihia"
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        inst = TestStructure(some_field="Hihi")   # too short
+    assert_validation_error(exc_info, "string_too_short", "Hihi")
+
+
+def test_create_struct_string_explicit_min():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[String, Len(5, min=3)]
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), StringField)
+
+    # should have both min and max
+    assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
+    assert any((m.min_length == 3 if isinstance(m, annotated_types.MinLen) else False) for m in f.annotation_metadata)
+    
+    inst = TestStructure(some_field="Hihi")    # valid string
+    assert type(inst.some_field) is str
+    assert inst.some_field == "Hihi"
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        inst = TestStructure(some_field="Hi")   # too short
+    assert_validation_error(exc_info, "string_too_short", "Hi")
+
+
+def test_create_struct_string_ignore_with_min():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[String, Len(5, min="same", ignore=True)]
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), StringField)
+
+    # should have neither min nor max but instead custom leninfo
+    assert not any(isinstance(m, annotated_types.MaxLen) for m in f.annotation_metadata)
+    assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
+    assert any(isinstance(m, LenInfo) for m in f.annotation_metadata)
+    
+    inst = TestStructure(some_field="Hihia6<s")    # still valid
+    assert type(inst.some_field) is str
+    assert inst.some_field == "Hihia6<s"
+    inst.struct_dump_elements() # should not error
+
+    inst = TestStructure(some_field="Hi")    # still valid
+    assert type(inst.some_field) is str
+    assert inst.some_field == "Hi"
+    inst.struct_dump_elements() # should not error
+
+
+def test_create_struct_string_ignore():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[String, Len(5, ignore=True)]
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), StringField)
+
+    # should have neither min nor max but instead custom leninfo
+    assert not any(isinstance(m, annotated_types.MaxLen) for m in f.annotation_metadata)
+    assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
+    assert any(isinstance(m, LenInfo) for m in f.annotation_metadata)
+    inst = TestStructure(some_field="Hihia6<s")    # still valid
+    assert type(inst.some_field) is str
+    assert inst.some_field == "Hihia6<s"
+    inst.struct_dump_elements() # should not error
+
+    inst = TestStructure(some_field="Hi")    # still valid
+    assert type(inst.some_field) is str
+    assert inst.some_field == "Hi"
+    inst.struct_dump_elements() # should not error
+
+
+## Padding tests ##
+
+def test_create_struct_padding_default():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[Padding, Len(5)]
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), PaddingField)
+    assert_general_field_checks(f, type(None), "some_field", True, False, "5x", 0, 5)
+    # check that the pydantic length constraint for max is present but not min by default
+    assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
+    assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
+
+    inst = TestStructure()    # not required
+    assert inst.some_field is None
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        inst = TestStructure(some_field="Hihihi")   # need none to init
+    assert_validation_error(exc_info, "none_required", "Hihihi")
+
+
+def test_create_struct_padding_no_len():
+    # padding without length must fail
+    with pytest.raises(TypeError) as exc_info:
+        class TestStructure(BaseStruct):
+            some_field: Padding
+    assert_missing_config_error(exc_info, "Len")
+
+
+## Array testing ##
+
+def test_create_struct_array_default():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[ArrayList[Uint16], Len(5)]
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
+    assert_general_field_checks(f, list, "some_field", True, False, "HHHHH", 5, 10)
+    # check that the pydantic length constraint for max is present but not min by default
+    assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
+    assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
+    
+    # array element has to be a non-top-level integer field
+    assert isinstance(el := f.element_field, IntegerField)
+    assert_general_field_checks(el, int, "some_field.__element__", False, False, "H", 1, 2)
+
+    inst = TestStructure(some_field=(1, 2, 3))    # should coerce to list
+    assert type(inst.some_field) is list
+    assert inst.some_field == [1, 2, 3]
+    assert type(inst.some_field[0]) is int
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        inst = TestStructure(some_field=[1, 2, 3, 4, 8, 9])   # too long
+    assert_validation_error(exc_info, "too_long")
+
+
+def test_create_struct_array_no_len():
+    # string without length must fail
+    with pytest.raises(TypeError) as exc_info:
+        class TestStructure(BaseStruct):
+            some_field: ArrayList[Uint16]
+    assert_missing_config_error(exc_info, "Len")
+
+
+def test_create_struct_array_exact():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[ArrayList[Uint16], Len(5, min="same")]
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
+
+    # should have both min and max
+    assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
+    assert any((m.min_length == 5 if isinstance(m, annotated_types.MinLen) else False) for m in f.annotation_metadata)
+    
+    TestStructure(some_field=(1, 2, 3, 6, 8))    # ok
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=[1, 2, 3, 4, 8, 9])   # too long
+    assert_validation_error(exc_info, "too_long")
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=[1, 2])   # too short
+    assert_validation_error(exc_info, "too_short")
+
+
+def test_create_struct_array_explicit_min():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[ArrayList[Uint16], Len(5, min=3)]
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
+
+    # should have both min and max
+    assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
+    assert any((m.min_length == 3 if isinstance(m, annotated_types.MinLen) else False) for m in f.annotation_metadata)
+    
+    TestStructure(some_field=(1, 2, 3, 6, 4))    # ok
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=[1, 2, 3, 4, 8, 9])   # too long
+    assert_validation_error(exc_info, "too_long")
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=[1, 2])   # too short
+    assert_validation_error(exc_info, "too_short")
+
+
+def test_create_struct_array_ignore_no_filler():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[ArrayList[Uint16], Len(5, min="same", ignore=True)]
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
+
+    # should have neither min nor max but instead custom leninfo
+    assert not any(isinstance(m, annotated_types.MaxLen) for m in f.annotation_metadata)
+    assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
+    assert any(isinstance(m, LenInfo) for m in f.annotation_metadata)
+    
+    inst = TestStructure(some_field=[1, 2, 3, 4, 8, 9]) # still valid
+    assert type(inst.some_field) is list
+    assert inst.some_field == [1, 2, 3, 4, 8, 9]
+    inst.struct_dump_elements() # should not error
+
+    inst = TestStructure(some_field=[1, 2]) # still valid
+    assert type(inst.some_field) is list
+    assert inst.some_field == [1, 2]
+    with pytest.raises(StructPackingError) as exc_info:
+        inst.struct_dump_elements() # should now error because filler is missing
+    e = str(exc_info.value).lower()
+    assert "only 2".lower() in e
+    assert "no Filler".lower() in e
+
+
+def test_create_struct_array_ignore_with_filler():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[ArrayList[Uint16], Len(5, min="same", ignore=True), Filler()]
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
+
+    # should have neither min nor max but instead custom leninfo
+    assert not any(isinstance(m, annotated_types.MaxLen) for m in f.annotation_metadata)
+    assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
+    assert any(isinstance(m, LenInfo) for m in f.annotation_metadata)
+    
+    inst = TestStructure(some_field=[1, 2, 3, 4, 8, 9]) # still valid
+    assert type(inst.some_field) is list
+    assert inst.some_field == [1, 2, 3, 4, 8, 9]
+    inst.struct_dump_elements() # should not error
+
+    inst = TestStructure(some_field=[1, 2]) # still valid
+    assert type(inst.some_field) is list
+    assert inst.some_field == [1, 2]
+    inst.struct_dump_elements() # should now work and fill with default constructor
+
+# TODO: test array of arrays
+# TODO: test big struct with all fields packing and unpacking with binary verification
 
 def atest_create_struct_invalid_enum():
     class BaseMsg(BaseStruct):

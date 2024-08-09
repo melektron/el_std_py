@@ -9,6 +9,7 @@
 # Limitations
 
 - While multiple inheritance is not strictly prohibited, it is not officially supported either and field order may not be as expected.
+- Strings with multi byte encodings are not properly handled, especially encodings like UTF-8 where the number of bytes per character can vary. The configured string field length is always the length in bytes, however pydantic interprets it as the length in characters, regardless of the encoding. So bear in mind that strings might still be truncated even though pydantic did not detect an overflow if multi byte string encodings and characters are used.
 
 # ToDo
 

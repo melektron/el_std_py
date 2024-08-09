@@ -11,7 +11,7 @@ LICENSE file in the root directory of this source tree.
 Binary structure support for Pydantic models
 """
 
-from ._base_struct import BaseStruct
+from ._base_struct import BaseStruct, StructPackingError
 from ._fields import (
     BaseField,
     IntegerField,

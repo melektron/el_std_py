@@ -288,7 +288,7 @@ class CharField(BaseField):
         self.bytes_consumption = 1
         self.struct_code = "c"
 
-Char = Annotated[str, CharField()]
+Char = Annotated[str, CharField(), Len(1, min="same")]
 
 
 class BoolField(BaseField):
