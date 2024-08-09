@@ -198,12 +198,12 @@ class IntegerField(BaseField):
 
 Uint8 = Annotated[int, IntegerField(1, "B", False), IntegerField.range_limit(False, 8)]
 Uint16 = Annotated[int, IntegerField(2, "H", False), IntegerField.range_limit(False, 16)]
-Uint32 = Annotated[int, IntegerField(4, "I", False), IntegerField.range_limit(False, 24)]
-Uint64 = Annotated[int, IntegerField(8, "Q", False), IntegerField.range_limit(False, 32)]
+Uint32 = Annotated[int, IntegerField(4, "I", False), IntegerField.range_limit(False, 32)]
+Uint64 = Annotated[int, IntegerField(8, "Q", False), IntegerField.range_limit(False, 64)]
 Int8 = Annotated[int, IntegerField(1, "b", True), IntegerField.range_limit(True, 8)]
 Int16 = Annotated[int, IntegerField(2, "h", True), IntegerField.range_limit(True, 16)]
-Int32 = Annotated[int, IntegerField(4, "i", True), IntegerField.range_limit(True, 24)]
-Int64 = Annotated[int, IntegerField(8, "q", True), IntegerField.range_limit(True, 32)]
+Int32 = Annotated[int, IntegerField(4, "i", True), IntegerField.range_limit(True, 32)]
+Int64 = Annotated[int, IntegerField(8, "q", True), IntegerField.range_limit(True, 64)]
 
 
 class EnumField[ET: enum.Enum](IntegerField):
@@ -213,7 +213,7 @@ class EnumField[ET: enum.Enum](IntegerField):
     def __init__(self, size: int, code: str, signed: bool) -> None:
         super().__init__(size, code, signed)
         self.supported_py_types = (enum.Enum, enum.IntEnum, enum.Flag, enum.IntFlag) # see _type_check() for details
-        self.type_annotation: enum.Enum
+        self.type_annotation: type[enum.Enum]
     
     @classmethod
     def check_in_range(cls, v: enum.Enum, signed: bool, bits: int, fn: str = "") -> None:
@@ -226,7 +226,7 @@ class EnumField[ET: enum.Enum](IntegerField):
         
         if not (v.value >= ge and v.value < lt):
             field_name_part = f" '{fn}'" if fn != "" else ""
-            value_part = f"{v.__class__.__name__}.{v.name} = {v.value}" if isinstance(v, (enum.IntEnum, enum.IntFlag, )) else f"{v.name} = {v.value}"
+            value_part = f"{v.__class__.__name__}.{v.name} = {v.value}" if isinstance(v, (enum.IntEnum, enum.IntFlag, )) else f"{v} = {v.value}"
             raise ValueError(f"'{cls.__name__}'{field_name_part} value {value_part} overflows the available range for {"" if signed else "U"}int{bits} ({ge} <= val <= {lt - 1})")
 
     @staticmethod
@@ -242,13 +242,13 @@ class EnumField[ET: enum.Enum](IntegerField):
             not issubclass(self.type_annotation, self.supported_py_types)
             or issubclass(self.type_annotation, enum.StrEnum)
         ): # don't allow string value types
-            raise TypeError(f"'{self.__class__.__name__}' '{self.field_name}' must resolve to one of {self.supported_py_types}, not '{self.type_annotation}'")
+            raise TypeError(f"'{self.__class__.__name__}' '{self.field_name}' must resolve to a subclass of {self.supported_py_types} and not '{enum.StrEnum}'. {self.type_annotation} does not meet these requirements.")
         
     @override
     def _configure_specialization(self) -> None:
         # make sure all values are in range already during structure creation
         for e in self.type_annotation:
-            self.check_in_range(e, self.signed, self.bytes_consumption * 8)
+            self.check_in_range(e, self.signed, self.bytes_consumption * 8, self.field_name)
 
     @override
     def unpacking_postprocessor(self, data: tuple[int, ...]) -> ET:
@@ -256,18 +256,18 @@ class EnumField[ET: enum.Enum](IntegerField):
 
     @override
     def packing_preprocessor(self, field: ET) -> tuple[int, ...]:
-        return (field.value, )  # get numerical enum value
+        return (self.type_annotation(field).value, )  # get numerical enum value
 
 ET = typing.TypeVar("ET")
 
 EnumU8 = Annotated[ET, EnumField[ET](1, "B", False), EnumField.range_limit(False, 8)]
 EnumU16 = Annotated[ET, EnumField[ET](2, "H", False), EnumField.range_limit(False, 16)]
-EnumU32 = Annotated[ET, EnumField[ET](4, "I", False), EnumField.range_limit(False, 24)]
-EnumU64 = Annotated[ET, EnumField[ET](8, "Q", False), EnumField.range_limit(False, 32)]
+EnumU32 = Annotated[ET, EnumField[ET](4, "I", False), EnumField.range_limit(False, 32)]
+EnumU64 = Annotated[ET, EnumField[ET](8, "Q", False), EnumField.range_limit(False, 64)]
 Enum8 = Annotated[ET, EnumField[ET](1, "b", True), EnumField.range_limit(True, 8)]
 Enum16 = Annotated[ET, EnumField[ET](2, "h", True), EnumField.range_limit(True, 16)]
-Enum32 = Annotated[ET, EnumField[ET](4, "i", True), EnumField.range_limit(True, 24)]
-Enum64 = Annotated[ET, EnumField[ET](8, "q", True), EnumField.range_limit(True, 32)]
+Enum32 = Annotated[ET, EnumField[ET](4, "i", True), EnumField.range_limit(True, 32)]
+Enum64 = Annotated[ET, EnumField[ET](8, "q", True), EnumField.range_limit(True, 64)]
 
 
 class FloatField(BaseField):

@@ -15,6 +15,7 @@ from ._base_struct import BaseStruct
 from ._fields import (
     BaseField,
     IntegerField,
+    EnumField,
     FloatField,
     CharField,
     BoolField,
