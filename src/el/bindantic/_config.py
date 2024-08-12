@@ -97,9 +97,11 @@ class EncodingInfo(FieldConfigItem[str]):
 class FillDefaultConstructor:
     pass
 
-class FillerInfo(FieldConfigItem[typing.Any | type[FillDefaultConstructor]]):
-    def __init__(self, value: typing.Any | type[FillDefaultConstructor]) -> None:
-        super().__init__(value)
+FillerParseMode = typing.Literal["auto", "strip-leading", "strip-trailing", "strip-both", "remove", "keep"]
+
+class FillerInfo(FieldConfigItem[tuple[typing.Any | type[FillDefaultConstructor], FillerParseMode]]):
+    def __init__(self, value: typing.Any | type[FillDefaultConstructor], parse_mode: FillerParseMode) -> None:
+        super().__init__((value, parse_mode))
 
 
 def Len(val: int, *, min: int | typing.Literal["same"] = 0, ignore: bool = False) -> pydantic.fields.FieldInfo | LenInfo:
@@ -139,12 +141,26 @@ def Encoding(val: str) -> EncodingInfo:
     """
     return EncodingInfo(val)
 
-def Filler(val: typing.Any | type[FillDefaultConstructor] = FillDefaultConstructor) -> FillerInfo:
+def Filler(
+    val: typing.Any | type[FillDefaultConstructor] = FillDefaultConstructor,
+    parse_mode: FillerParseMode = "auto",
+) -> FillerInfo:
     """
-    Filler value for shorter arrays and strings. FillDefaultConstructor
-    will use the the default constructor with no parameters for filling
+    Filler value for shorter arrays. FillDefaultConstructor
+    will use the the default constructor with no parameters for filling.
+
+    The "parse_mode" option configures how fillers are handed
+    when postprocessing the array after unpacking. There are three options:
+     - "strip-leading": removes leading filler values from the output type. Not recommended for lists, but may be useful for queues
+     - "strip-trailing" (default for sequence types including queues): removes trailing filler values from the output type
+     - "strip-both": removes leading and trailing filler values form the output type. Not recommended for arrays, but may be useful for queues
+     - "remove" (default for set types): removes all fillers from the output type (even amidst valid values). Be careful when 
+         using this with list or tuple arrays because indexes may be shifted. This is mostly intended for sets.
+     - "keep" (default without filler specified): keeps all values when parsing, even fillers.
+    
+    When selecting "auto" (default) the setting is chosen according to type as described above
     """
-    return FillerInfo(val)
+    return FillerInfo(val, parse_mode)
 
 
 class FieldConfigOptions:

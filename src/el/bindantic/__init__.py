@@ -23,6 +23,7 @@ from ._fields import (
     BytesField,
     PaddingField,
     ArrayField,
+    Outlet,
     Uint8,
     Uint16,
     Uint32,

@@ -13,6 +13,7 @@ tests for bindantic
 
 import pytest
 import enum
+import sys
 import pydantic
 import annotated_types
 from collections import deque
@@ -96,7 +97,7 @@ def assert_general_integer_checks(
     assert f.signed == signed
 
 
-def test_create_struct_intU8():
+def test_intU8():
     class TestStructure(BaseStruct):
         some_field: Uint8 = 578
     
@@ -115,7 +116,7 @@ def test_create_struct_intU8():
     assert_validation_error(exc_info, "greater_than_equal", -1, {"ge": 0})
 
 
-def test_create_struct_intU16():
+def test_intU16():
     class TestStructure(BaseStruct):
         some_field: Uint16
     
@@ -134,7 +135,7 @@ def test_create_struct_intU16():
     assert_validation_error(exc_info, "greater_than_equal", -1, {"ge": 0})
 
 
-def test_create_struct_intU32():
+def test_intU32():
     class TestStructure(BaseStruct):
         some_field: Uint32
     
@@ -153,7 +154,7 @@ def test_create_struct_intU32():
     assert_validation_error(exc_info, "greater_than_equal", -1, {"ge": 0})
     
 
-def test_create_struct_intU64():
+def test_intU64():
     class TestStructure(BaseStruct):
         some_field: Uint64
     
@@ -172,7 +173,7 @@ def test_create_struct_intU64():
     assert_validation_error(exc_info, "greater_than_equal", -1, {"ge": 0})
 
 
-def test_create_struct_int8():
+def test_int8():
     class TestStructure(BaseStruct):
         some_field: Int8
     
@@ -192,7 +193,7 @@ def test_create_struct_int8():
     assert_validation_error(exc_info, "greater_than_equal", tv, {"ge": tv + 1})
 
 
-def test_create_struct_int16():
+def test_int16():
     class TestStructure(BaseStruct):
         some_field: Int16
     
@@ -212,7 +213,7 @@ def test_create_struct_int16():
     assert_validation_error(exc_info, "greater_than_equal", tv, {"ge": tv + 1})
 
 
-def test_create_struct_int32():
+def test_int32():
     class TestStructure(BaseStruct):
         some_field: Int32
     
@@ -232,7 +233,7 @@ def test_create_struct_int32():
     assert_validation_error(exc_info, "greater_than_equal", tv, {"ge": tv + 1})
     
 
-def test_create_struct_int64():
+def test_int64():
     class TestStructure(BaseStruct):
         some_field: Int64
     
@@ -265,7 +266,7 @@ def assert_enum_out_of_range_error(
     assert int_type.lower() in msg
 
 
-def test_create_struct_enumU8():
+def test_enumU8():
     class TestStructure(BaseStruct):
         some_field: EnumU8[KnownGoodEnumUnsigned]
     
@@ -293,7 +294,7 @@ def test_create_struct_enumU8():
     assert_enum_out_of_range_error(exc_info, "Uint8")
 
 
-def test_create_struct_enumU16():
+def test_enumU16():
     class TestStructure(BaseStruct):
         some_field: EnumU16[KnownGoodEnumUnsigned]
     
@@ -321,7 +322,7 @@ def test_create_struct_enumU16():
     assert_enum_out_of_range_error(exc_info, "Uint16")
 
 
-def test_create_struct_enumU32():
+def test_enumU32():
     class TestStructure(BaseStruct):
         some_field: EnumU32[KnownGoodEnumUnsigned]
     
@@ -349,7 +350,7 @@ def test_create_struct_enumU32():
     assert_enum_out_of_range_error(exc_info, "Uint32")
     
 
-def test_create_struct_enumU64():
+def test_enumU64():
     class TestStructure(BaseStruct):
         some_field: EnumU64[KnownGoodEnumUnsigned]
     
@@ -377,7 +378,7 @@ def test_create_struct_enumU64():
     assert_enum_out_of_range_error(exc_info, "Uint64")
 
 
-def test_create_struct_enum8():
+def test_enum8():
     class TestStructure(BaseStruct):
         some_field: Enum8[KnownGoodEnumSigned]
     
@@ -406,7 +407,7 @@ def test_create_struct_enum8():
     assert_enum_out_of_range_error(exc_info, "Int8")
 
 
-def test_create_struct_enum16():
+def test_enum16():
     class TestStructure(BaseStruct):
         some_field: Enum16[KnownGoodEnumSigned]
     
@@ -435,7 +436,7 @@ def test_create_struct_enum16():
     assert_enum_out_of_range_error(exc_info, "Int16")
 
 
-def test_create_struct_enum32():
+def test_enum32():
     class TestStructure(BaseStruct):
         some_field: Enum32[KnownGoodEnumSigned]
     
@@ -464,7 +465,7 @@ def test_create_struct_enum32():
     assert_enum_out_of_range_error(exc_info, "Int32")
     
 
-def test_create_struct_enum64():
+def test_enum64():
     class TestStructure(BaseStruct):
         some_field: Enum64[KnownGoodEnumSigned]
     
@@ -597,7 +598,7 @@ def test_struct_enum_test_str():
 
 ## Float Testing ##
 
-def test_create_struct_float32():
+def test_float32():
     class TestStructure(BaseStruct):
         some_field: Float32
     
@@ -609,7 +610,7 @@ def test_create_struct_float32():
     assert inst.some_field == 2.0
 
 
-def test_create_struct_float64():
+def test_float64():
     class TestStructure(BaseStruct):
         some_field: Float64
     
@@ -623,7 +624,7 @@ def test_create_struct_float64():
 
 ## Char testing ##
 
-def test_create_struct_char():
+def test_char():
     class TestStructure(BaseStruct):
         some_field: Char
     
@@ -636,6 +637,8 @@ def test_create_struct_char():
     inst = TestStructure(some_field="A")    # valid char
     assert type(inst.some_field) is str
     assert inst.some_field == "A"
+    assert isinstance(inst.struct_dump_elements()[0], bytes)
+    assert inst.struct_dump_bytes() == b"A"
     
     with pytest.raises(pydantic.ValidationError) as exc_info:
         TestStructure(some_field="AB")  # too long
@@ -648,7 +651,7 @@ def test_create_struct_char():
 
 ## Bool testing ##
 
-def test_create_struct_bool():
+def test_bool():
     class TestStructure(BaseStruct):
         some_field: Bool
     
@@ -672,7 +675,7 @@ def test_create_struct_bool():
 
 ## Bytes testing ##
 
-def test_create_struct_bytes_default():
+def test_bytes_default():
     class TestStructure(BaseStruct):
         some_field: Annotated[Bytes, Len(5)]
     
@@ -691,7 +694,7 @@ def test_create_struct_bytes_default():
     assert_validation_error(exc_info, "bytes_too_long", b"Hihihi")
 
 
-def test_create_struct_bytes_no_len():
+def test_bytes_no_len():
     # bytes without length must fail
     with pytest.raises(TypeError) as exc_info:
         class TestStructure(BaseStruct):
@@ -699,7 +702,7 @@ def test_create_struct_bytes_no_len():
     assert_missing_config_error(exc_info, "Len")
 
 
-def test_create_struct_bytes_exact():
+def test_bytes_exact():
     class TestStructure(BaseStruct):
         some_field: Annotated[Bytes, Len(5, min="same")]
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), BytesField)
@@ -717,7 +720,7 @@ def test_create_struct_bytes_exact():
     assert_validation_error(exc_info, "bytes_too_short", b"Hihi")
 
 
-def test_create_struct_bytes_explicit_min():
+def test_bytes_explicit_min():
     class TestStructure(BaseStruct):
         some_field: Annotated[Bytes, Len(5, min=3)]
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), BytesField)
@@ -735,7 +738,7 @@ def test_create_struct_bytes_explicit_min():
     assert_validation_error(exc_info, "bytes_too_short", b"Hi")
 
 
-def test_create_struct_bytes_ignore_with_min():
+def test_bytes_ignore_with_min():
     class TestStructure(BaseStruct):
         some_field: Annotated[Bytes, Len(5, min="same", ignore=True)]
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), BytesField)
@@ -756,7 +759,7 @@ def test_create_struct_bytes_ignore_with_min():
     inst.struct_dump_elements() # should not error
 
 
-def test_create_struct_bytes_ignore():
+def test_bytes_ignore():
     class TestStructure(BaseStruct):
         some_field: Annotated[Bytes, Len(5, ignore=True)]
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), BytesField)
@@ -778,7 +781,7 @@ def test_create_struct_bytes_ignore():
 
 ## String testing ##
 
-def test_create_struct_string_default():
+def test_string_default():
     class TestStructure(BaseStruct):
         some_field: Annotated[String, Len(5)]
     
@@ -797,7 +800,7 @@ def test_create_struct_string_default():
     assert_validation_error(exc_info, "string_too_long", "Hihihi")
 
 
-def test_create_struct_string_no_len():
+def test_string_no_len():
     # string without length must fail
     with pytest.raises(TypeError) as exc_info:
         class TestStructure(BaseStruct):
@@ -805,7 +808,7 @@ def test_create_struct_string_no_len():
     assert_missing_config_error(exc_info, "Len")
 
 
-def test_create_struct_string_exact():
+def test_string_exact():
     class TestStructure(BaseStruct):
         some_field: Annotated[String, Len(5, min="same")]
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), StringField)
@@ -823,7 +826,7 @@ def test_create_struct_string_exact():
     assert_validation_error(exc_info, "string_too_short", "Hihi")
 
 
-def test_create_struct_string_explicit_min():
+def test_string_explicit_min():
     class TestStructure(BaseStruct):
         some_field: Annotated[String, Len(5, min=3)]
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), StringField)
@@ -841,7 +844,7 @@ def test_create_struct_string_explicit_min():
     assert_validation_error(exc_info, "string_too_short", "Hi")
 
 
-def test_create_struct_string_ignore_with_min():
+def test_string_ignore_with_min():
     class TestStructure(BaseStruct):
         some_field: Annotated[String, Len(5, min="same", ignore=True)]
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), StringField)
@@ -862,7 +865,7 @@ def test_create_struct_string_ignore_with_min():
     inst.struct_dump_elements() # should not error
 
 
-def test_create_struct_string_ignore():
+def test_string_ignore():
     class TestStructure(BaseStruct):
         some_field: Annotated[String, Len(5, ignore=True)]
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), StringField)
@@ -884,7 +887,7 @@ def test_create_struct_string_ignore():
 
 ## Padding tests ##
 
-def test_create_struct_padding_default():
+def test_padding_default():
     class TestStructure(BaseStruct):
         some_field: Annotated[Padding, Len(5)]
     
@@ -902,7 +905,7 @@ def test_create_struct_padding_default():
     assert_validation_error(exc_info, "none_required", "Hihihi")
 
 
-def test_create_struct_padding_no_len():
+def test_padding_no_len():
     # padding without length must fail
     with pytest.raises(TypeError) as exc_info:
         class TestStructure(BaseStruct):
@@ -912,7 +915,7 @@ def test_create_struct_padding_no_len():
 
 ## Array testing ##
 
-def test_create_struct_array_default():
+def test_array_list_common():
     class TestStructure(BaseStruct):
         some_field: Annotated[ArrayList[Uint16], Len(5)]
     
@@ -936,7 +939,7 @@ def test_create_struct_array_default():
     assert_validation_error(exc_info, "too_long")
 
 
-def test_create_struct_array_no_len():
+def test_array_no_len():
     # string without length must fail
     with pytest.raises(TypeError) as exc_info:
         class TestStructure(BaseStruct):
@@ -944,7 +947,7 @@ def test_create_struct_array_no_len():
     assert_missing_config_error(exc_info, "Len")
 
 
-def test_create_struct_array_exact():
+def test_array_exact():
     class TestStructure(BaseStruct):
         some_field: Annotated[ArrayList[Uint16], Len(5, min="same")]
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
@@ -964,7 +967,7 @@ def test_create_struct_array_exact():
     assert_validation_error(exc_info, "too_short")
 
 
-def test_create_struct_array_explicit_min():
+def test_array_explicit_min():
     class TestStructure(BaseStruct):
         some_field: Annotated[ArrayList[Uint16], Len(5, min=3)]
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
@@ -984,7 +987,7 @@ def test_create_struct_array_explicit_min():
     assert_validation_error(exc_info, "too_short")
 
 
-def test_create_struct_array_ignore_no_filler():
+def test_array_ignore_no_filler():
     class TestStructure(BaseStruct):
         some_field: Annotated[ArrayList[Uint16], Len(5, min="same", ignore=True)]
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
@@ -1009,7 +1012,7 @@ def test_create_struct_array_ignore_no_filler():
     assert "no Filler".lower() in e
 
 
-def test_create_struct_array_ignore_with_filler():
+def test_array_ignore_with_filler():
     class TestStructure(BaseStruct):
         some_field: Annotated[ArrayList[Uint16], Len(5, min="same", ignore=True), Filler()]
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
@@ -1029,63 +1032,474 @@ def test_create_struct_array_ignore_with_filler():
     assert inst.some_field == [1, 2]
     inst.struct_dump_elements() # should now work and fill with default constructor
 
-# TODO: test array of arrays
-# TODO: test big struct with all fields packing and unpacking with binary verification
 
-def atest_create_struct_invalid_enum():
-    class BaseMsg(BaseStruct):
-        #model_config = StructConfigDict(extra="forbid")
-        model_config = StructConfigDict(
-            byte_order="big-endian", 
-            extra="forbid"
-        )
+def test_array_of_arrays():
+    """
+    Complex 3 dimensional array with string elements
+    """
+    class TestStructure(BaseStruct):
+        some_field: Annotated[ArrayList[
+            Annotated[ArrayList[
+                Annotated[ArrayList[
+                    Annotated[String, Len(10)]
+                ], Len(5), Filler()]    # default filler mode
+            ], Len(5), Filler()]    # same
+        ], Len(5), Filler()]    # same
 
-        mtype: EnumU8[KnownGoodEnumUnsigned]
-        local_timestamp_abs: Uint32
-        missed_messages: Uint16
-        b: Annotated[String, Len(9)]
-        c: Annotated[Bytes, Len(2)]
-        pad1: Annotated[Padding, Len(4)]
-        compf_outlet: Float32
-        msgs: Annotated[ArrayFrozenSet[
-                Annotated[ArrayTuple[
-                    Uint8
-                ], Len(3), Filler(5)]
-            ], Len(5), Filler()]
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
+    assert_general_field_checks(f, list, "some_field", True, False, "".join(["10s" * 5 * 5 * 5]), 5 * 5 * 5, 10 * 5 * 5 * 5)
+    # check that the pydantic length constraint for max is present but not min by default
+    assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
+    assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
+
+    # check that the array contains another array (not top level)
+    assert isinstance(f := f.element_field, ArrayField)
+    assert_general_field_checks(f, list, "some_field.__element__", False, False, "".join(["10s" * 5 * 5]), 5 * 5, 10 * 5 * 5)
+    # check that the pydantic length constraint for max is present but not min by default
+    assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
+    assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
+
+    # check that this array contains yet another array (not top level)
+    assert isinstance(f := f.element_field, ArrayField)
+    assert_general_field_checks(f, list, "some_field.__element__.__element__", False, False, "".join(["10s" * 5]), 5, 10 * 5)
+    # check that the pydantic length constraint for max is present but not min by default
+    assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
+    assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
+
+    # check that this last array contains strings (not top level)
+    assert isinstance(f := f.element_field, StringField)
+    assert_general_field_checks(f, str, "some_field.__element__.__element__.__element__", False, False, "10s", 1, 10)
+    # check that the pydantic length constraint for max is present but not min by default
+    assert any((m.max_length == 10 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
+    assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
+
+    test_data = [   # valid, filled with filler
+        [
+            ["Hello", "These", "are", "words"],
+            ["And", "even", "more", "words"],
+            ['']
+        ],
+        [
+            [],
+            ["Next", "2D", "element"]
+        ],
+    ]
+    inst = TestStructure(some_field=test_data)
+    assert type(inst.some_field) is list
+    bytes_rep = inst.struct_dump_bytes()
+    assert len(bytes_rep) == (10 * 5 * 5 * 5) # should not error
+
+    # recover array
+    unpacked = TestStructure.struct_validate_bytes(bytes_rep)
+    assert unpacked.some_field[0][0][0] == "Hello"
+    assert unpacked.some_field[0][0][1] == "These"
+    assert unpacked.some_field[0][0][2] == "are"
+    assert unpacked.some_field[0][0][3] == "words"
+    assert unpacked.some_field[0][1][0] == "And"
+    assert unpacked.some_field[0][1][1] == "even"
+    assert unpacked.some_field[0][1][2] == "more"
+    assert unpacked.some_field[0][1][3] == "words"
+    assert unpacked.some_field[1][1][0] == "Next"
+    assert unpacked.some_field[1][1][1] == "2D"
+    assert unpacked.some_field[1][1][2] == "element"
+    # make sure the trailing empty fillers are stripped but not leading ones
+    assert len(unpacked.some_field) == 2
+    assert len(unpacked.some_field[0]) == 2
+    assert len(unpacked.some_field[0][0]) == 4
+    assert len(unpacked.some_field[0][1]) == 4
+    assert len(unpacked.some_field[1]) == 2, "Leading fillers must not be removed"
+    assert len(unpacked.some_field[1][1]) == 3
+
+
+def test_array_tuple():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[ArrayTuple[Uint8], Len(5), Filler()]  # default filler mode
+
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
+    assert_general_field_checks(f, tuple, "some_field", True, False, "BBBBB", 5, 5)
+
+    inst = TestStructure(some_field=(1, 2, 3))
+    inst2 = TestStructure(some_field=[1, 2, 3]) # should coerce
+    assert type(inst.some_field) is tuple
+    assert type(inst2.some_field) is tuple
+    assert inst == inst2
+
+    # packing
+    bytes_rep = inst.struct_dump_bytes()
+    assert len(bytes_rep) == 5
+    assert bytes_rep == b"\x01\x02\x03\0\0"
+
+    # recover array
+    unpacked = TestStructure.struct_validate_bytes(bytes_rep)
+    assert unpacked.some_field == (1, 2, 3) # trailing fillers stripped
+
+
+def test_array_set():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[ArraySet[Uint8], Len(5), Filler()]    # default filler mode
+
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
+    assert_general_field_checks(f, set, "some_field", True, False, "BBBBB", 5, 5)
+
+    inst = TestStructure(some_field=set((1, 0, 2, 3)))  # zero (==int()) Filler should be stripped after parsing
+    inst2 = TestStructure(some_field=[1, 2, 0, 3]) # should coerce
+    assert type(inst.some_field) is set
+    assert type(inst2.some_field) is set
+    assert inst == inst2  # zero (==int()) Filler should be stripped after parsing
+
+    # packing
+    bytes_rep = inst.struct_dump_bytes()
+    assert len(bytes_rep) == 5
+    assert set(bytes_rep) == set(b"\x01\x02\x03\0\0")
+
+    # recover array
+    unpacked = TestStructure.struct_validate_bytes(bytes_rep)
+    assert unpacked.some_field == set((1, 2, 3))    # there should be no zero filler
+
+
+def test_array_frozenset():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[ArrayFrozenSet[Uint8], Len(5), Filler()]  # default filler mode
+
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
+    assert_general_field_checks(f, frozenset, "some_field", True, False, "BBBBB", 5, 5)
+
+    inst = TestStructure(some_field=frozenset((1, 0, 2, 3)))  # zero (==int()) Filler should be stripped after parsing
+    inst2 = TestStructure(some_field=[1, 2, 0, 3]) # should coerce
+    assert type(inst.some_field) is frozenset
+    assert type(inst2.some_field) is frozenset
+    assert inst == inst2  # zero (==int()) Filler should be stripped after parsing
+
+    # packing
+    bytes_rep = inst.struct_dump_bytes()
+    assert len(bytes_rep) == 5
+    assert set(bytes_rep) == frozenset(b"\x01\x02\x03\0\0")
+
+    # recover array
+    unpacked = TestStructure.struct_validate_bytes(bytes_rep)
+    assert unpacked.some_field == frozenset((1, 2, 3))  # there should be no zero filler
+
+
+def test_array_deque():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[ArrayDeque[Uint8], Len(5), Filler()]
+
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
+    assert_general_field_checks(f, deque, "some_field", True, False, "BBBBB", 5, 5)
+
+    inst = TestStructure(some_field=deque((1, 2, 3)))
+    inst2 = TestStructure(some_field=[1, 2, 3]) # should coerce
+    assert type(inst.some_field) is deque
+    assert type(inst2.some_field) is deque
+    assert inst == inst2
+
+    # packing
+    bytes_rep = inst.struct_dump_bytes()
+    assert len(bytes_rep) == 5
+    assert bytes_rep == b"\x01\x02\x03\0\0"
+
+    # recover array
+    unpacked = TestStructure.struct_validate_bytes(bytes_rep)
+    assert unpacked.some_field == deque((1, 2, 3))  # trailing fillers stripped
+
+
+def test_array_filler_keep():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[ArrayTuple[Uint8], Len(6), Filler(6, parse_mode="keep")]
+
+    # additional filler (value "6") should be generated at end
+    inst = TestStructure(some_field=(6, 1, 6, 2, 3))
+    bytes_rep = inst.struct_dump_bytes()
+    assert bytes_rep == b"\x06\x01\x06\x02\x03\x06"
+
+    unpacked = TestStructure.struct_validate_bytes(bytes_rep)
+    assert unpacked.some_field == (6, 1, 6, 2, 3, 6), "all filler should be kept"
+
+
+def test_array_filler_remove():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[ArrayTuple[Uint8], Len(6), Filler(6, parse_mode="remove")]
+
+    # additional filler (value "6") should be generated at end
+    inst = TestStructure(some_field=(6, 1, 6, 2, 3))
+    bytes_rep = inst.struct_dump_bytes()
+    assert bytes_rep == b"\x06\x01\x06\x02\x03\x06"
+    
+    unpacked = TestStructure.struct_validate_bytes(bytes_rep)
+    assert unpacked.some_field == (1, 2, 3), "all filler should be removed"
+
+
+def test_array_filler_strip_leading():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[ArrayTuple[Uint8], Len(6), Filler(6, parse_mode="strip-leading")]
+
+    # additional filler (value "6") should be generated at end
+    inst = TestStructure(some_field=(6, 1, 6, 2, 3))
+    bytes_rep = inst.struct_dump_bytes()
+    assert bytes_rep == b"\x06\x01\x06\x02\x03\x06"
+    
+    unpacked = TestStructure.struct_validate_bytes(bytes_rep)
+    assert unpacked.some_field == (1, 6, 2, 3, 6), "only leading filler should be stripped"
+
+
+def test_array_filler_strip_trailing():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[ArrayTuple[Uint8], Len(6), Filler(6, parse_mode="strip-trailing")]
+
+    # additional filler (value "6") should be generated at end
+    inst = TestStructure(some_field=(6, 1, 6, 2, 3))
+    bytes_rep = inst.struct_dump_bytes()
+    assert bytes_rep == b"\x06\x01\x06\x02\x03\x06"
+    
+    unpacked = TestStructure.struct_validate_bytes(bytes_rep)
+    assert unpacked.some_field == (6, 1, 6, 2, 3), "only trailing filler should be stripped"
+
+
+def test_array_filler_skip_both():
+    class TestStructure(BaseStruct):
+        some_field: Annotated[ArrayTuple[Uint8], Len(6), Filler(6, parse_mode="strip-both")]
+
+    # additional filler (value "6") should be generated at end
+    inst = TestStructure(some_field=(6, 1, 6, 2, 3))
+    bytes_rep = inst.struct_dump_bytes()
+    assert bytes_rep == b"\x06\x01\x06\x02\x03\x06"
+    
+    unpacked = TestStructure.struct_validate_bytes(bytes_rep)
+    assert unpacked.some_field == (1, 6, 2, 3), "only leading and trailing filler should be stripped"
+
+
+## Combined struct test ##
+
+def test_combined_struct():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        uint8: Uint8
+        uint16: Uint16
+        uint32: Uint32
+        uint64: Uint64
+        int8: Int8
+        int16: Int16
+        int32: Int32
+        int64: Int64
+        enumu8: EnumU8[KnownGoodEnumUnsigned]
+        enumu16: EnumU16[KnownGoodEnumUnsigned]
+        enumu32: EnumU32[KnownGoodEnumUnsigned]
+        enumu64: EnumU64[KnownGoodEnumUnsigned]
+        enum8: Enum8[KnownGoodEnumSigned]
+        enum16: Enum16[KnownGoodEnumSigned]
+        enum32: Enum32[KnownGoodEnumSigned]
+        enum64: Enum64[KnownGoodEnumSigned]
+        float32: Float32
+        float64: Float64
+        char: Char
+        bool: Bool
+        string: Annotated[String, Len(10)]
+        bytes: Annotated[Bytes, Len(11)]
+        padding: Annotated[Padding, Len(3)]
+        array_list: Annotated[ArrayList[Int8], Len(2)]
+        array_tuple: Annotated[ArrayTuple[Int8], Len(2)]
+        array_set: Annotated[ArraySet[Int8], Len(2)]
+        array_frozenset: Annotated[ArrayFrozenSet[Int8], Len(3)]
+        array_deque: Annotated[ArrayDeque[Int8], Len(3)]
+    
+    # test combined structure config
+    assert TestStructure.__bindantic_element_consumption__ == 34
+    assert TestStructure.__bindantic_byte_consumption__ == 110
+    assert TestStructure.__bindantic_struct_code__ == ">BHIQbhiqBHIQbhiqfdc?10s11s3xbbbbbbbbbbbb"
+
+    # test instantiation
+    inst = TestStructure(
+        uint8=0x8F,
+        uint16=0x43 | 0x56 << 8,
+        uint32=0x43 | 0x56 << 8 | 0x89 << 16 | 0x94 << 24,
+        uint64=0x43 | 0x56 << 8 | 0x89 << 16 | 0x94 << 24 | 0x43 << 32 | 0x56 << 40 | 0x89 << 48 | 0x94 << 56,
+        int8=0x19,
+        int16=0x43 | 0x56 << 8,
+        int32=0x43 | 0x56 << 8 | 0x89 << 16 | 0x14 << 24,
+        int64=0x43 | 0x56 << 8 | 0x89 << 16 | 0x94 << 24 | 0x43 << 32 | 0x56 << 40 | 0x89 << 48 | 0x14 << 56,
+        enumu8=KnownGoodEnumUnsigned.FIRST,
+        enumu16=KnownGoodEnumUnsigned.SECOND,
+        enumu32=KnownGoodEnumUnsigned.THIRD,
+        enumu64=KnownGoodEnumUnsigned.FOURTH,
+        enum8=KnownGoodEnumSigned.FIRST,
+        enum16=KnownGoodEnumSigned.SECOND,
+        enum32=KnownGoodEnumSigned.THIRD,
+        enum64=KnownGoodEnumSigned.FOURTH,
+        float32=267.5,  # 0x4385c000
+        float64=740.2348,   # 0x408721e0ded288ce
+        char="C",
+        bool=True,
+        string="Hello",
+        bytes=b"Goodbye\0\0\0\0",   # would be padded but compare would otherwise fail
+        array_list=[1, 2],
+        array_tuple=(3, 4),
+        array_set=[5, 6],
+        array_frozenset=[7, 8, 9],
+        array_deque=[10, 11, 12]
+    )
+    
+    # binary verification
+    byte_rep = inst.struct_dump_bytes()
+    offset = 0
+    def get_bytes(n: int):
+        nonlocal offset
+        b = byte_rep[offset:(offset + n)]
+        offset += n
+        return b
+    
+    assert get_bytes(1) == b"\x8F"
+    assert get_bytes(2) == b"\x56\x43"
+    assert get_bytes(4) == b"\x94\x89\x56\x43"
+    assert get_bytes(8) == b"\x94\x89\x56\x43\x94\x89\x56\x43"
+    assert get_bytes(1) == b"\x19"
+    assert get_bytes(2) == b"\x56\x43"
+    assert get_bytes(4) == b"\x14\x89\x56\x43"
+    assert get_bytes(8) == b"\x14\x89\x56\x43\x94\x89\x56\x43"
+    assert get_bytes(1) == b"\x00"
+    assert get_bytes(2) == b"\x00\x01"
+    assert get_bytes(4) == b"\x00\x00\x00\x02"
+    assert get_bytes(8) == b"\x00\x00\x00\x00\x00\x00\x00\x03"
+    assert get_bytes(1) == b"\xFE"      # two's complement -2
+    assert get_bytes(2) == b"\xFF\xFF"  # two's complement -1
+    assert get_bytes(4) == b"\x00\x00\x00\x00"
+    assert get_bytes(8) == b"\x00\x00\x00\x00\x00\x00\x00\x01"
+    assert get_bytes(4) == b"\x43\x85\xc0\x00"
+    assert get_bytes(8) == b"\x40\x87\x21\xe0\xde\xd2\x88\xce"
+    assert get_bytes(1) == "C".encode("utf-8")  # utf-8 is default encoding for bindantic (and also python)
+    assert get_bytes(1) == b"\x01"
+    assert get_bytes(10) == b"Hello\0\0\0\0\0"
+    assert get_bytes(11) == b"Goodbye\0\0\0\0"
+    assert get_bytes(3) == b"\0\0\0"    # padding
+    assert get_bytes(4) == b"\x01\x02\x03\x04"
+    assert set(get_bytes(2)) == set(b"\x05\x06")        # set element order can change
+    assert set(get_bytes(3)) == set(b"\x07\x08\x09")    # set element order can change
+    assert get_bytes(3) == b"\x0A\x0B\x0C"
+
+    # test unpacking
+    reconstruction = TestStructure.struct_validate_bytes(byte_rep)
+    assert reconstruction == inst
+
+
+## Byteorder tests ##
+
+def test_byteorder_native_aligned():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="native-aligned")
+        some_field: Uint16
+    
+    assert TestStructure.__bindantic_struct_code__ == "@H"
+    data = TestStructure(some_field=1 << 8 | 2).struct_dump_bytes()
+
+    # for a single uint16 alignment does not matter. We cannot easily test
+    # architecture native alignment.
+    if sys.byteorder == "big":
+        assert data == b"\x01\x02"
+    else:
+        assert data == b"\x02\x01"
+
+
+def test_byteorder_native():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="native")
+        some_field: Uint16
+    
+    assert TestStructure.__bindantic_struct_code__ == "=H"
+    data = TestStructure(some_field=1 << 8 | 2).struct_dump_bytes()
+
+    if sys.byteorder == "big":
+        assert data == b"\x01\x02"
+    else:
+        assert data == b"\x02\x01"
+
+
+def test_byteorder_big_endian():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Uint16
+    
+    assert TestStructure.__bindantic_struct_code__ == ">H"
+    data = TestStructure(some_field=1 << 8 | 2).struct_dump_bytes()
+    assert data == b"\x01\x02"
+
+
+def test_byteorder_little_endian():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="little-endian")
+        some_field: Uint16
+    
+    assert TestStructure.__bindantic_struct_code__ == "<H"
+    data = TestStructure(some_field=1 << 8 | 2).struct_dump_bytes()
+    assert data == b"\x02\x01"
+
+
+def test_byteorder_network():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="network")
+        some_field: Uint16
+    
+    assert TestStructure.__bindantic_struct_code__ == "!H"
+    data = TestStructure(some_field=1 << 8 | 2).struct_dump_bytes()
+    assert data == b"\x01\x02"
+
+
+## Outlet tests ##
+
+def test_outlet_default():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Uint16
+        double_outlet: Outlet[Uint16]
 
         @pydantic.computed_field
-        def compf(self) -> float:
-            return 0.6
+        def double(self) -> Uint16:
+            return self.some_field * 2
+    
+    # normal field
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
+    assert_general_field_checks(f, int, "some_field", True, False, "H", 1, 2)
+    
+    # outlet field
+    assert isinstance(f := TestStructure.struct_fields.get("double"), IntegerField)
+    assert_general_field_checks(f, int, "double", True, True, "H", 1, 2)
 
-#class OtherMsg(BaseMsg):
-#    data: Annotated[list[int], pydantic.Field(default_factory=lambda: [1, 2])]
-#
-#    @pydantic.field_serializer("data")
-#    def data_ser(self, dt: list[int], _info):
-#        return ", ".join([str(d) for d in dt])
-#
-#if __name__ == "__main__":
-#    OtherMsg.__init__.__annotations__ = {"ho": str}
-#    my_instance = OtherMsg(
-#        mtype=MsgType.STARTUP_INFO,
-#        local_timestamp_abs=2,
-#        missed_messages=65535,
-#        b="heyanot",
-#        c="as",
-#        msgs=[[90, 18, 5], [1, 2], [1, 4], [9, 8]],#, maxlen=5),
-#        data=[7, 8, 519]
-#    )
-#    #my_instance.msgs.append((5,198,81,8))
-#    #my_instance.msgs.append((5,24))
-#    #my_instance.msgs.append((9,50))
-#    print(my_instance.model_validate)
-#    print(my_instance.model_dump_json())
-#    print(elem := my_instance.struct_dump_elements())
-#    print(bt := my_instance.struct_dump_bytes())
-#    print(OtherMsg.struct_validate_elements(elem))
-#    print(OtherMsg.struct_validate_bytes(bt))
-#    print(OtherMsg.__bindantic_struct_code__)
-#    print(OtherMsg.__bindantic_byte_consumption__)
-#    print(len(my_instance.struct_dump_bytes()))
-#    
-#
+    # together
+    assert TestStructure.__bindantic_struct_code__ == ">HH"
+    data = TestStructure(some_field=3).struct_dump_elements()
+    assert data == (3, 6)
+
+    # when parsing, the value should be ignored
+    parsed = TestStructure.struct_validate_elements((3, 5))
+    assert parsed.double == 6, "double must be computed and not parsed"
+
+
+def test_outlet_type_mismatch_small():
+    with pytest.raises(TypeError):
+        class TestStructure(BaseStruct):
+            model_config = StructConfigDict(byte_order="big-endian")
+            some_field: Uint16
+            double_outlet: Outlet[Uint16]
+
+            @pydantic.computed_field
+            def double(self) -> Uint32:
+                return self.some_field * 2
+    
+
+def test_outlet_type_mismatch_large():
+    with pytest.raises(TypeError):
+        class TestStructure(BaseStruct):
+            model_config = StructConfigDict(byte_order="big-endian")
+            some_field: Uint16
+            double_outlet: Outlet[Uint16]
+
+            @pydantic.computed_field
+            def double(self) -> String:
+                return self.some_field * 2
+    
+
+def test_outlet_missing_source():
+    with pytest.raises(NameError):
+        class TestStructure(BaseStruct):
+            model_config = StructConfigDict(byte_order="big-endian")
+            some_field: Uint16
+            double_outlet: Outlet[Uint16]   # must error because there is no matching computed field
+    

@@ -19,7 +19,7 @@ from copy import deepcopy
 from ._deps import pydantic, ModelMetaclass
 if typing.TYPE_CHECKING:
     from ._base_struct import BaseStruct
-from ._fields import BaseField, get_field_from_field_info
+from ._fields import BaseField, get_field_from_field_info, get_raw_field_field_info
 from ._config import StructConfigDict
 
 PyStructBaseTypes = bytes | int | bool | float
@@ -115,8 +115,14 @@ class StructMetaclass(ModelMetaclass):
             # if the field is an outlet, check that a corresponding
             # computed field exists and use it's name instead
             if struct_field.is_outlet:
-                if struct_field.field_name not in cls.model_computed_fields:
+                cf = cls.model_computed_fields.get(struct_field.field_name)
+                if cf is None:
                     raise NameError(f"There is no computed field called '{struct_field.field_name}' to to supply outlet '{struct_field.outlet_name}'.")
+                # check that the return type of the computed field is correct
+                return_pd_field = pydantic.fields.FieldInfo.from_annotation(cf.return_type)
+                return_st_field = get_raw_field_field_info(return_pd_field)
+                if return_st_field is None or not struct_field.is_equivalent(return_st_field):  # check if the field TYPES are equivalent
+                    raise TypeError(f"Outlet source '{struct_field.field_name}' must return the same binary-capable field type as it's outlet, not '{cf.return_type}'")
             cls.struct_fields[struct_field.field_name] = struct_field
         
         # start struct string depending on byte order
