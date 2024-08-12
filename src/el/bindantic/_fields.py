@@ -18,8 +18,11 @@ import enum
 from collections import deque
 from typing import Any, Annotated, override
 from copy import deepcopy
+from el.typing_tools import get_origin_always
 from ._deps import pydantic, annotated_types
 from ._config import *
+if typing.TYPE_CHECKING:
+    from ._base_struct import BaseStruct
 
 
 PyStructBaseTypes = bytes | int | bool | float
@@ -195,7 +198,20 @@ def get_raw_field_field_info(
         match meta_element:
             case BaseField():   # struct field found
                 return meta_element
-    # TODO: add support for substructures
+    
+    # If we don't have any metadata, check if the element is any special type
+    from ._base_struct import BaseStruct
+    origin_type= get_origin_always(pydantic_field.annotation)
+    
+    if origin_type is typing.Union:
+        return UnionField()         # create special unit field
+    
+    try:
+        if issubclass(origin_type, BaseStruct):
+            return NestedStructField()  # create a new structure field instance
+    except TypeError:   # some other non-class type
+        return None
+    
     return None # No metadata found to identify this as a struct field
 
 
@@ -452,8 +468,8 @@ class ArrayField(BaseField):
     
     @override
     def _type_check(self) -> None:
-        if not issubclass(typing.get_origin(self.type_annotation), self.supported_py_types):
-            raise TypeError(f"'{self.__class__.__name__}' '{self.field_name}' must resolve to one of {self.supported_py_types}, not '{typing.get_origin(self.type_annotation)}'")
+        if not issubclass(get_origin_always(self.type_annotation), self.supported_py_types):
+            raise TypeError(f"'{self.__class__.__name__}' '{self.field_name}' must resolve to one of {self.supported_py_types}, not '{get_origin_always(self.type_annotation)}'")
 
         # extract and check the element type
         try:
@@ -461,7 +477,6 @@ class ArrayField(BaseField):
         except KeyError:
             raise TypeError(f"'{self.__class__.__name__}' '{self.field_name}' must be subscripted with an element type")
         
-        # TODO: make sure this also works for substructures
         # create a pydantic field info by passing the entire annotation. If the type is annotated, 
         # this does all the heavy of reading the annotated metadata, processing pydantic related 
         # field info (not relevant for pydantic here because this is only our instance but we may
@@ -486,7 +501,7 @@ class ArrayField(BaseField):
         self.filler, self.parse_mode = self.config_options.get_with_error(self, FillerInfo, (BindanticUndefined, "keep"))
 
         if self.parse_mode == "auto":
-            if issubclass(typing.get_origin(self.type_annotation), (set, frozenset, )):
+            if issubclass(get_origin_always(self.type_annotation), (set, frozenset, )):
                 self.parse_mode = "remove"
             else:
                 self.parse_mode = "strip-trailing"
@@ -561,3 +576,93 @@ ArrayTuple = Annotated[tuple[ET, ...], ArrayField()]
 ArraySet = Annotated[set[ET], ArrayField()]
 ArrayFrozenSet = Annotated[frozenset[ET], ArrayField()]
 ArrayDeque = Annotated[deque[ET], ArrayField()]
+
+
+class NestedStructField[ST: BaseStruct](BaseField):
+    """
+    representation of another struct as the field of the first
+    """
+ 
+    def __init__(self) -> None:
+        super().__init__()
+        # just in time import
+        from ._base_struct import BaseStruct
+        self.supported_py_types = (BaseStruct, )
+        self.type_annotation: type[ST]
+
+    @override
+    def _configure_specialization(self) -> None:
+        self.bytes_consumption = self.type_annotation.__bindantic_byte_consumption__
+        self.element_consumption = 1
+        self.struct_code = f"{self.bytes_consumption}s"
+    
+    @override
+    def unpacking_postprocessor(self, data: tuple[PyStructBaseTypes, ...]) -> dict[str, Any]:
+        # unpack the nested structure to dict to pass on to the main struct validator
+        return self.type_annotation._struct_unpack_bytes(data[0])
+
+    @override
+    def packing_preprocessor(self, field: ST) -> tuple[Any, ...]:
+        # pack the struct instance to bytes to be merged with the big structure
+        return (field.struct_dump_bytes(), )
+
+
+class UnionField(BaseField):
+    """
+    representation of another struct as the field of the first
+    """
+ 
+    def __init__(self) -> None:
+        super().__init__()
+        # just in time import
+        from ._base_struct import BaseStruct
+        self.BaseStruct = BaseStruct
+
+        self.supported_py_types = (BaseStruct, )
+        self.type_annotation: type
+        self.field_options: list[NestedStructField] = []
+
+    @override
+    def _type_check(self) -> None:
+        if get_origin_always(self.type_annotation) is not typing.Union:
+            raise TypeError(f"'{self.__class__.__name__}' '{self.field_name}' must resolve to a Union type, not '{self.type_annotation}'. This should be impossible and is to be reported.")
+        union_types = typing.get_args(self.type_annotation)
+        
+        for type_option in union_types:
+            # make sure the type option is a structure class
+            try:
+                if not issubclass(type_option, self.BaseStruct):    # might also raise TypeError if type option is not a class
+                    raise TypeError("Wrong class")
+            except TypeError:
+                raise TypeError(f"Union members of '{self.__class__.__name__}' '{self.field_name}' must be structure classes inheriting from BaseStruct, not '{type_option}'.")
+            
+            # get the struct field for the class
+            field_option_info = pydantic.fields.FieldInfo.from_annotation(type_option)
+            field_option = get_field_from_field_info(
+                self.field_name + f":{field_option_info.annotation.__name__}",   # example: some_field:AnotherStructure
+                field_option_info,
+                False
+            )
+
+            # make sure again that we got a nested struct field
+            if not isinstance(field_option, NestedStructField):
+                raise TypeError(f"Union members of '{self.__class__.__name__}' '{self.field_name}' must resolve to a '{NestedStructField.__name__}', not '{type(field_option)}'.")
+            self.field_options.append(field_option)
+            # TODO: complete functionality to descriminate between field options by converting them all to dicts and then feeding them to pydantic
+        
+
+    @override
+    def _configure_specialization(self) -> None:
+        self.bytes_consumption = self.type_annotation.__bindantic_byte_consumption__
+        self.element_consumption = 1
+        self.struct_code = f"{self.bytes_consumption}s"
+    
+    @override
+    def unpacking_postprocessor(self, data: tuple[PyStructBaseTypes, ...]) -> dict[str, Any]:
+        # unpack the nested structure to dict to pass on to the main struct validator
+        return self.type_annotation._struct_unpack_bytes(data[0])
+
+    @override
+    def packing_preprocessor(self, field: Any) -> tuple[Any, ...]:
+        # pack the struct instance to bytes to be merged with the big structure
+        return (field.struct_dump_bytes(), )

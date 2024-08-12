@@ -12,14 +12,14 @@ Base class of all structures which provides combined Pydantic Model and Binary S
 functionality
 """
 
-import sys
 import typing
 import struct
 from typing import ClassVar
 from ._deps import pydantic
 from ._struct_construction import StructMetaclass, PyStructBaseTypes
-from ._fields import BaseField, PaddingField
 from ._config import StructConfigDict
+if typing.TYPE_CHECKING:
+    from ._fields import BaseField
 
 
 class StructPackingError(Exception):
@@ -111,6 +111,70 @@ class BaseStruct(pydantic.BaseModel, metaclass=StructMetaclass):
             raise StructPackingError(str(e))
 
     @classmethod
+    def _struct_postprocess_elements(cls, elements: tuple[PyStructBaseTypes, ...]) -> dict[str, typing.Any]:
+        """
+        Postprocesses the structure from the provided structure elements and returns
+        the structure value dict ready for validation. 
+        
+        This is to be used internally to allow validating substructures
+        in one go with their parent.
+
+        Params:
+            elements: the structure elements to load the data from
+        
+        Raises:
+            Anything that fields raise
+        
+        Returns:
+            the unpacked structure dict ready for validation
+        """
+        output_val_dict: dict[str, typing.Any] = {}
+
+        # just-in-time import this to avoid import reference
+        from ._fields import PaddingField
+
+        # let all fields consume their elements
+        element_offset: int = 0
+        for name, field in cls.struct_fields.items():
+            # padding doesn't consume any elements
+            if isinstance(field, PaddingField):
+                continue
+            # consume elements
+            field_elements = elements[element_offset : (element_offset + field.element_consumption)]
+            element_offset += field.element_consumption
+            # outlet fields consume elements but the data is not processed as it
+            # is instead provided by computed fields
+            if field.is_outlet:
+                continue
+            # preprocess the data into the desired python object
+            output_val_dict[name] = field.unpacking_postprocessor(field_elements)
+        
+        return output_val_dict
+
+    @classmethod
+    def _struct_unpack_bytes(cls, data: bytes | bytearray) -> dict[str, typing.Any]:
+        """
+        Unpacks the structure from a byte buffer, postprocesses
+        it and then returns the data in dict form.
+        
+        Internally this makes use of _struct_postprocess_elements() which
+        is called after unpacking the structure from bytes
+        
+        Params:
+            data: the binary representation of the structure
+        
+        Raises:
+            Anything that fields raise
+        
+        Returns:
+            the unpacked structure dict ready for validation
+        """
+        
+        return cls._struct_postprocess_elements(
+            cls.__bindantic_struct_inst__.unpack(data)
+        )
+    
+    @classmethod
     def struct_validate_elements(cls, elements: tuple[PyStructBaseTypes, ...]) -> typing.Self:
         """
         Postprocesses and then validates the structure from the provided
@@ -130,28 +194,10 @@ class BaseStruct(pydantic.BaseModel, metaclass=StructMetaclass):
         Returns:
             the validated structure instance
         """
-        output_val_dict: dict[str, typing.Any] = {}
         try:
-            # let all fields consume their elements
-            element_offset: int = 0
-            for name, field in cls.struct_fields.items():
-                # padding doesn't consume any elements
-                if isinstance(field, PaddingField):
-                    continue
-                # consume elements
-                field_elements = elements[element_offset : (element_offset + field.element_consumption)]
-                element_offset += field.element_consumption
-                # outlet fields consume elements but the data is not processed as it
-                # is instead provided by computed fields
-                if field.is_outlet:
-                    continue
-                # preprocess the data into the desired python object
-                output_val_dict[name] = field.unpacking_postprocessor(field_elements)
-        
+            return cls.model_validate(cls._struct_postprocess_elements(elements))
         except Exception as e:
             raise StructPackingError(str(e))
-            
-        return cls.model_validate(output_val_dict)
 
     @classmethod
     def struct_validate_bytes(cls, data: bytes | bytearray) -> typing.Self:
@@ -174,9 +220,7 @@ class BaseStruct(pydantic.BaseModel, metaclass=StructMetaclass):
         """
         
         try:
-            return cls.struct_validate_elements(
-                cls.__bindantic_struct_inst__.unpack(data)
-            )
+            return cls.model_validate(cls._struct_unpack_bytes(data))
         except struct.error as e:
             raise StructPackingError(str(e))
 

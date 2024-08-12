@@ -6,7 +6,6 @@ cffi==1.17.0
 charset-normalizer==3.3.2
 cryptography==43.0.0
 docutils==0.21.2
--e git+https://github.com/melektron/el_py.git@83d8f24840202a3db00f9383e8317b2842497363#egg=el_py
 idna==3.7
 importlib_metadata==8.2.0
 iniconfig==2.0.0

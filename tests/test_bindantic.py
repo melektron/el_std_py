@@ -1502,4 +1502,174 @@ def test_outlet_missing_source():
             model_config = StructConfigDict(byte_order="big-endian")
             some_field: Uint16
             double_outlet: Outlet[Uint16]   # must error because there is no matching computed field
+
+
+## nested structures ##
+
+def test_nested_structure():
+    class SubStruct(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_nested_field: Uint8
+
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Uint16
+        substructure: SubStruct
     
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
+    assert_general_field_checks(f, int, "some_field", True, False, "H", 1, 2)
+
+    # substructure should be a special field
+    assert isinstance(f := TestStructure.struct_fields.get("substructure"), NestedStructField)
+    assert_general_field_checks(f, SubStruct, "substructure", True, False, "1s", 1, 1)
+
+    # substructure should contain integer as normal
+    assert isinstance(f := f.type_annotation.struct_fields.get("some_nested_field"), IntegerField)
+    assert_general_field_checks(f, int, "some_nested_field", True, False, "B", 1, 1)
+    
+    # instantiation
+    inst = TestStructure(
+        some_field=0x56,
+        substructure={"some_nested_field": 0x78}
+    )
+    binary_rep = inst.struct_dump_bytes()
+    assert binary_rep == b"\x00\x56\x78"
+
+    # parsing
+    reconstruct = TestStructure.struct_validate_bytes(binary_rep)
+    assert reconstruct == inst
+
+    
+def test_nested_structure_inline():
+
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Uint16
+        class SubStruct(BaseStruct):
+            model_config = StructConfigDict(byte_order="big-endian")
+            some_nested_field: Uint8
+        substructure: SubStruct
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
+    assert_general_field_checks(f, int, "some_field", True, False, "H", 1, 2)
+
+    # substructure should be a special field
+    assert isinstance(f := TestStructure.struct_fields.get("substructure"), NestedStructField)
+    assert_general_field_checks(f, TestStructure.SubStruct, "substructure", True, False, "1s", 1, 1)
+
+    # substructure should contain integer as normal
+    assert isinstance(f := f.type_annotation.struct_fields.get("some_nested_field"), IntegerField)
+    assert_general_field_checks(f, int, "some_nested_field", True, False, "B", 1, 1)
+    
+    # instantiation
+    inst = TestStructure(
+        some_field=0x56,
+        substructure={"some_nested_field": 0x78}
+    )
+    binary_rep = inst.struct_dump_bytes()
+    assert binary_rep == b"\x00\x56\x78"
+
+    # parsing
+    reconstruct = TestStructure.struct_validate_bytes(binary_rep)
+    assert reconstruct == inst
+
+
+def test_array_of_nested_structures():
+    class SubStruct(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_nested_field: Uint8
+        wider_variable: Uint16
+
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Uint16
+        substructures: Annotated[ArrayList[SubStruct], Len(3)]
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
+    assert_general_field_checks(f, int, "some_field", True, False, "H", 1, 2)
+
+    # substructure should now be a list
+    assert isinstance(f := TestStructure.struct_fields.get("substructures"), ArrayField)
+    assert_general_field_checks(f, list, "substructures", True, False, "3s3s3s", 3, 9)
+
+    # substructure list should contain substructure
+    assert isinstance(f := f.element_field, NestedStructField)
+    assert_general_field_checks(f, SubStruct, "substructures.__element__", False, False, "3s", 1, 3)
+
+    # substructure should contain integers as normal
+    assert isinstance(i := f.type_annotation.struct_fields.get("some_nested_field"), IntegerField)
+    assert_general_field_checks(i, int, "some_nested_field", True, False, "B", 1, 1)
+    assert isinstance(i := f.type_annotation.struct_fields.get("wider_variable"), IntegerField)
+    assert_general_field_checks(i, int, "wider_variable", True, False, "H", 1, 2)
+    
+    # instantiation
+    inst = TestStructure(
+        some_field=0x56,
+        substructures=[
+            {"some_nested_field": 0x78, "wider_variable": 0x00},
+            {"some_nested_field": 0x79, "wider_variable": 0x00},
+            {"some_nested_field": 0x7A, "wider_variable": 0x00},
+        ]
+    )
+    binary_rep = inst.struct_dump_bytes()
+    assert binary_rep == b"\x00\x56\x78\0\0\x79\0\0\x7A\0\0"
+
+    # parsing
+    reconstruct = TestStructure.struct_validate_bytes(binary_rep)
+    assert reconstruct == inst
+    # check that dict elements are properly converted
+    assert reconstruct.substructures[0] == SubStruct(some_nested_field=0x78, wider_variable=0x0)
+
+
+## Union testing ##
+
+def test_union():
+    class SubStructA(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        short: Uint8
+        wide: typing.Literal[2]
+    
+    class SubStructB(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        wide: typing.Literal[3]
+        short: Uint8
+
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Uint16
+        substructure: Annotated[typing.Union[SubStructA, SubStructB], pydantic.Discriminator("wide")]
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
+    assert_general_field_checks(f, int, "some_field", True, False, "H", 1, 2)
+
+    ## substructure should now be a list
+    #assert isinstance(f := TestStructure.struct_fields.get("substructures"), ArrayField)
+    #assert_general_field_checks(f, list, "substructures", True, False, "3s3s3s", 3, 9)
+#
+    ## substructure list should contain substructure
+    #assert isinstance(f := f.element_field, NestedStructField)
+    #assert_general_field_checks(f, SubStruct, "substructures.__element__", False, False, "3s", 1, 3)
+#
+    ## substructure should contain integers as normal
+    #assert isinstance(i := f.type_annotation.struct_fields.get("some_nested_field"), IntegerField)
+    #assert_general_field_checks(i, int, "some_nested_field", True, False, "B", 1, 1)
+    #assert isinstance(i := f.type_annotation.struct_fields.get("wider_variable"), IntegerField)
+    #assert_general_field_checks(i, int, "wider_variable", True, False, "H", 1, 2)
+    #
+    ## instantiation
+    #inst = TestStructure(
+    #    some_field=0x56,
+    #    substructures=[
+    #        {"some_nested_field": 0x78, "wider_variable": 0x00},
+    #        {"some_nested_field": 0x79, "wider_variable": 0x00},
+    #        {"some_nested_field": 0x7A, "wider_variable": 0x00},
+    #    ]
+    #)
+    #binary_rep = inst.struct_dump_bytes()
+    #assert binary_rep == b"\x00\x56\x78\0\0\x79\0\0\x7A\0\0"
+#
+    ## parsing
+    #reconstruct = TestStructure.struct_validate_bytes(binary_rep)
+    #assert reconstruct == inst
+    ## check that dict elements are properly converted
+    #assert reconstruct.substructures[0] == SubStruct(some_nested_field=0x78, wider_variable=0x0)

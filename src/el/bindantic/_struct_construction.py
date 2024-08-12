@@ -19,44 +19,11 @@ from copy import deepcopy
 from ._deps import pydantic, ModelMetaclass
 if typing.TYPE_CHECKING:
     from ._base_struct import BaseStruct
-from ._fields import BaseField, get_field_from_field_info, get_raw_field_field_info
-from ._config import StructConfigDict
+from ._fields import get_field_from_field_info, get_raw_field_field_info
+
 
 PyStructBaseTypes = bytes | int | bool | float
 StructIntermediate = typing.Collection[PyStructBaseTypes] | PyStructBaseTypes
-
-BinaryDataType = typing.Literal[
-    "uint8",
-    "uint16",
-    "uint32",
-    "uint64",
-    "int8",
-    "int16",
-    "int32",
-    "int64",
-    "float32",
-    "float64",
-    "char",
-    "bool",
-    "string",
-    "bytes",
-    "padding"
-]
-
-ARRAY_CAPABLE_TYPES: list[BinaryDataType] = [
-    "uint8"
-    "uint16"
-    "uint32"
-    "uint64"
-    "int8"
-    "int16"
-    "int32"
-    "int64"
-    "float32"
-    "float64"
-    "char"
-    "bool"
-]
 
 
 # This decorator enables type hinting magic (https://stackoverflow.com/a/73988406)
