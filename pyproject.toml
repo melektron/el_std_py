@@ -3,12 +3,12 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "el_py"
+name = "el-std-py"
 version = "0.1.0"
 authors = [
   { name="melektron", email="matteo@elektron.work" },
 ]
-description = "An assortment of useful python utilities complementing the builtin python packages"
+description = "An assortment of useful python utilities complementing some builtin and third party python packages"
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.12"
 classifiers = [
