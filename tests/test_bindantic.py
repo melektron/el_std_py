@@ -47,7 +47,7 @@ def get_actual_type(tp: Any) -> Any:
 def assert_general_field_checks(
     f: BaseField, 
     annotation_type: type,
-    field_name: str,
+    hierarchy_field_name: str,
     top_level: bool,
     outlet: bool,
     struct_code: str, 
@@ -57,7 +57,7 @@ def assert_general_field_checks(
     assert f.type_annotation is f.pydantic_field.annotation
     assert f.annotation_metadata is f.pydantic_field.metadata
     assert get_actual_type(f.type_annotation) is annotation_type
-    assert f.field_name == field_name
+    assert f.hierarchy_location_with_self_string == hierarchy_field_name
     assert f.is_top_level == top_level
     assert f.is_outlet == outlet
     assert f.supported_py_types
@@ -102,7 +102,7 @@ def test_intU8():
         some_field: Uint8 = 578
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
-    assert_general_field_checks(f, int, "some_field", True, False,"B", 1, 1)
+    assert_general_field_checks(f, int, "TestStructure.some_field", True, False,"B", 1, 1)
     assert_general_integer_checks(f, False)
 
     # range limits    
@@ -121,7 +121,7 @@ def test_intU16():
         some_field: Uint16
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
-    assert_general_field_checks(f, int, "some_field", True, False, "H", 1, 2)
+    assert_general_field_checks(f, int, "TestStructure.some_field", True, False, "H", 1, 2)
     assert_general_integer_checks(f, False)
 
     # range limits
@@ -140,7 +140,7 @@ def test_intU32():
         some_field: Uint32
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
-    assert_general_field_checks(f, int, "some_field", True, False, "I", 1, 4)
+    assert_general_field_checks(f, int, "TestStructure.some_field", True, False, "I", 1, 4)
     assert_general_integer_checks(f, False)
 
     # range limits
@@ -159,7 +159,7 @@ def test_intU64():
         some_field: Uint64
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
-    assert_general_field_checks(f, int, "some_field", True, False, "Q", 1, 8)
+    assert_general_field_checks(f, int, "TestStructure.some_field", True, False, "Q", 1, 8)
     assert_general_integer_checks(f, False)
 
     # range limits
@@ -178,7 +178,7 @@ def test_int8():
         some_field: Int8
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
-    assert_general_field_checks(f, int, "some_field", True, False, "b", 1, 1)
+    assert_general_field_checks(f, int, "TestStructure.some_field", True, False, "b", 1, 1)
     assert_general_integer_checks(f, True)
 
     # range limits
@@ -198,7 +198,7 @@ def test_int16():
         some_field: Int16
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
-    assert_general_field_checks(f, int, "some_field", True, False, "h", 1, 2)
+    assert_general_field_checks(f, int, "TestStructure.some_field", True, False, "h", 1, 2)
     assert_general_integer_checks(f, True)
 
     # range limits
@@ -218,7 +218,7 @@ def test_int32():
         some_field: Int32
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
-    assert_general_field_checks(f, int, "some_field", True, False, "i", 1, 4)
+    assert_general_field_checks(f, int, "TestStructure.some_field", True, False, "i", 1, 4)
     assert_general_integer_checks(f, True)
 
     # range limits
@@ -238,7 +238,7 @@ def test_int64():
         some_field: Int64
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
-    assert_general_field_checks(f, int, "some_field", True, False, "q", 1, 8)
+    assert_general_field_checks(f, int, "TestStructure.some_field", True, False, "q", 1, 8)
     assert_general_integer_checks(f, True)
 
     # range limits
@@ -271,7 +271,7 @@ def test_enumU8():
         some_field: EnumU8[KnownGoodEnumUnsigned]
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), EnumField)
-    assert_general_field_checks(f, KnownGoodEnumUnsigned, "some_field", True, False,"B", 1, 1)
+    assert_general_field_checks(f, KnownGoodEnumUnsigned, "TestStructure.some_field", True, False,"B", 1, 1)
     assert_general_integer_checks(f, False)
 
     TestStructure(some_field=2)     # valid enum value
@@ -299,7 +299,7 @@ def test_enumU16():
         some_field: EnumU16[KnownGoodEnumUnsigned]
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), EnumField)
-    assert_general_field_checks(f, KnownGoodEnumUnsigned, "some_field", True, False, "H", 1, 2)
+    assert_general_field_checks(f, KnownGoodEnumUnsigned, "TestStructure.some_field", True, False, "H", 1, 2)
     assert_general_integer_checks(f, False)
 
     TestStructure(some_field=2)     # valid enum value
@@ -327,7 +327,7 @@ def test_enumU32():
         some_field: EnumU32[KnownGoodEnumUnsigned]
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), EnumField)
-    assert_general_field_checks(f, KnownGoodEnumUnsigned, "some_field", True, False, "I", 1, 4)
+    assert_general_field_checks(f, KnownGoodEnumUnsigned, "TestStructure.some_field", True, False, "I", 1, 4)
     assert_general_integer_checks(f, False)
 
     TestStructure(some_field=2)     # valid enum value
@@ -355,7 +355,7 @@ def test_enumU64():
         some_field: EnumU64[KnownGoodEnumUnsigned]
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), EnumField)
-    assert_general_field_checks(f, KnownGoodEnumUnsigned, "some_field", True, False, "Q", 1, 8)
+    assert_general_field_checks(f, KnownGoodEnumUnsigned, "TestStructure.some_field", True, False, "Q", 1, 8)
     assert_general_integer_checks(f, False)
 
     TestStructure(some_field=2)     # valid enum value
@@ -383,7 +383,7 @@ def test_enum8():
         some_field: Enum8[KnownGoodEnumSigned]
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), EnumField)
-    assert_general_field_checks(f, KnownGoodEnumSigned, "some_field", True, False, "b", 1, 1)
+    assert_general_field_checks(f, KnownGoodEnumSigned, "TestStructure.some_field", True, False, "b", 1, 1)
     assert_general_integer_checks(f, True)
 
     TestStructure(some_field=1)     # valid enum value
@@ -412,7 +412,7 @@ def test_enum16():
         some_field: Enum16[KnownGoodEnumSigned]
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), EnumField)
-    assert_general_field_checks(f, KnownGoodEnumSigned, "some_field", True, False, "h", 1, 2)
+    assert_general_field_checks(f, KnownGoodEnumSigned, "TestStructure.some_field", True, False, "h", 1, 2)
     assert_general_integer_checks(f, True)
 
     TestStructure(some_field=1)     # valid enum value
@@ -441,7 +441,7 @@ def test_enum32():
         some_field: Enum32[KnownGoodEnumSigned]
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), EnumField)
-    assert_general_field_checks(f, KnownGoodEnumSigned, "some_field", True, False, "i", 1, 4)
+    assert_general_field_checks(f, KnownGoodEnumSigned, "TestStructure.some_field", True, False, "i", 1, 4)
     assert_general_integer_checks(f, True)
 
     TestStructure(some_field=1)     # valid enum value
@@ -470,7 +470,7 @@ def test_enum64():
         some_field: Enum64[KnownGoodEnumSigned]
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), EnumField)
-    assert_general_field_checks(f, KnownGoodEnumSigned, "some_field", True, False, "q", 1, 8)
+    assert_general_field_checks(f, KnownGoodEnumSigned, "TestStructure.some_field", True, False, "q", 1, 8)
     assert_general_integer_checks(f, True)
 
     TestStructure(some_field=1)     # valid enum value
@@ -603,7 +603,7 @@ def test_float32():
         some_field: Float32
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), FloatField)
-    assert_general_field_checks(f, float, "some_field", True, False, "f", 1, 4)
+    assert_general_field_checks(f, float, "TestStructure.some_field", True, False, "f", 1, 4)
 
     inst = TestStructure(some_field=2)     # cast to float
     assert type(inst.some_field) is float
@@ -615,7 +615,7 @@ def test_float64():
         some_field: Float64
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), FloatField)
-    assert_general_field_checks(f, float, "some_field", True, False, "d", 1, 8)
+    assert_general_field_checks(f, float, "TestStructure.some_field", True, False, "d", 1, 8)
 
     inst = TestStructure(some_field=2)     # cast to float
     assert type(inst.some_field) is float
@@ -629,7 +629,7 @@ def test_char():
         some_field: Char
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), CharField)
-    assert_general_field_checks(f, str, "some_field", True, False, "c", 1, 1)
+    assert_general_field_checks(f, str, "TestStructure.some_field", True, False, "c", 1, 1)
     # check that the pydantic length constraint is present
     assert any((m.max_length == 1 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
     assert any((m.min_length == 1 if isinstance(m, annotated_types.MinLen) else False) for m in f.annotation_metadata)
@@ -656,7 +656,7 @@ def test_bool():
         some_field: Bool
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), BoolField)
-    assert_general_field_checks(f, bool, "some_field", True, False, "?", 1, 1)
+    assert_general_field_checks(f, bool, "TestStructure.some_field", True, False, "?", 1, 1)
 
     inst = TestStructure(some_field=1)    # coerced to bool
     assert type(inst.some_field) is bool
@@ -680,7 +680,7 @@ def test_bytes_default():
         some_field: Annotated[Bytes, Len(5)]
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), BytesField)
-    assert_general_field_checks(f, bytes, "some_field", True, False, "5s", 1, 5)
+    assert_general_field_checks(f, bytes, "TestStructure.some_field", True, False, "5s", 1, 5)
     # check that the pydantic length constraint for max is present but not min by default
     assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
     assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
@@ -786,7 +786,7 @@ def test_string_default():
         some_field: Annotated[String, Len(5)]
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), StringField)
-    assert_general_field_checks(f, str, "some_field", True, False, "5s", 1, 5)
+    assert_general_field_checks(f, str, "TestStructure.some_field", True, False, "5s", 1, 5)
     # check that the pydantic length constraint for max is present but not min by default
     assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
     assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
@@ -892,7 +892,7 @@ def test_padding_default():
         some_field: Annotated[Padding, Len(5)]
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), PaddingField)
-    assert_general_field_checks(f, type(None), "some_field", True, False, "5x", 0, 5)
+    assert_general_field_checks(f, type(None), "TestStructure.some_field", True, False, "5x", 0, 5)
     # check that the pydantic length constraint for max is present but not min by default
     assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
     assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
@@ -920,14 +920,14 @@ def test_array_list_common():
         some_field: Annotated[ArrayList[Uint16], Len(5)]
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
-    assert_general_field_checks(f, list, "some_field", True, False, "HHHHH", 5, 10)
+    assert_general_field_checks(f, list, "TestStructure.some_field", True, False, "HHHHH", 5, 10)
     # check that the pydantic length constraint for max is present but not min by default
     assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
     assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
     
     # array element has to be a non-top-level integer field
     assert isinstance(el := f.element_field, IntegerField)
-    assert_general_field_checks(el, int, "some_field.__element__", False, False, "H", 1, 2)
+    assert_general_field_checks(el, int, "TestStructure.some_field.__element__", False, False, "H", 1, 2)
 
     inst = TestStructure(some_field=(1, 2, 3))    # should coerce to list
     assert type(inst.some_field) is list
@@ -1047,28 +1047,28 @@ def test_array_of_arrays():
         ], Len(5), Filler()]    # same
 
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
-    assert_general_field_checks(f, list, "some_field", True, False, "".join(["10s" * 5 * 5 * 5]), 5 * 5 * 5, 10 * 5 * 5 * 5)
+    assert_general_field_checks(f, list, "TestStructure.some_field", True, False, "".join(["10s" * 5 * 5 * 5]), 5 * 5 * 5, 10 * 5 * 5 * 5)
     # check that the pydantic length constraint for max is present but not min by default
     assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
     assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
 
     # check that the array contains another array (not top level)
     assert isinstance(f := f.element_field, ArrayField)
-    assert_general_field_checks(f, list, "some_field.__element__", False, False, "".join(["10s" * 5 * 5]), 5 * 5, 10 * 5 * 5)
+    assert_general_field_checks(f, list, "TestStructure.some_field.__element__", False, False, "".join(["10s" * 5 * 5]), 5 * 5, 10 * 5 * 5)
     # check that the pydantic length constraint for max is present but not min by default
     assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
     assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
 
     # check that this array contains yet another array (not top level)
     assert isinstance(f := f.element_field, ArrayField)
-    assert_general_field_checks(f, list, "some_field.__element__.__element__", False, False, "".join(["10s" * 5]), 5, 10 * 5)
+    assert_general_field_checks(f, list, "TestStructure.some_field.__element__.__element__", False, False, "".join(["10s" * 5]), 5, 10 * 5)
     # check that the pydantic length constraint for max is present but not min by default
     assert any((m.max_length == 5 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
     assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
 
     # check that this last array contains strings (not top level)
     assert isinstance(f := f.element_field, StringField)
-    assert_general_field_checks(f, str, "some_field.__element__.__element__.__element__", False, False, "10s", 1, 10)
+    assert_general_field_checks(f, str, "TestStructure.some_field.__element__.__element__.__element__", False, False, "10s", 1, 10)
     # check that the pydantic length constraint for max is present but not min by default
     assert any((m.max_length == 10 if isinstance(m, annotated_types.MaxLen) else False) for m in f.annotation_metadata)
     assert not any(isinstance(m, annotated_types.MinLen) for m in f.annotation_metadata)
@@ -1116,7 +1116,7 @@ def test_array_tuple():
         some_field: Annotated[ArrayTuple[Uint8], Len(5), Filler()]  # default filler mode
 
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
-    assert_general_field_checks(f, tuple, "some_field", True, False, "BBBBB", 5, 5)
+    assert_general_field_checks(f, tuple, "TestStructure.some_field", True, False, "BBBBB", 5, 5)
 
     inst = TestStructure(some_field=(1, 2, 3))
     inst2 = TestStructure(some_field=[1, 2, 3]) # should coerce
@@ -1139,7 +1139,7 @@ def test_array_set():
         some_field: Annotated[ArraySet[Uint8], Len(5), Filler()]    # default filler mode
 
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
-    assert_general_field_checks(f, set, "some_field", True, False, "BBBBB", 5, 5)
+    assert_general_field_checks(f, set, "TestStructure.some_field", True, False, "BBBBB", 5, 5)
 
     inst = TestStructure(some_field=set((1, 0, 2, 3)))  # zero (==int()) Filler should be stripped after parsing
     inst2 = TestStructure(some_field=[1, 2, 0, 3]) # should coerce
@@ -1162,7 +1162,7 @@ def test_array_frozenset():
         some_field: Annotated[ArrayFrozenSet[Uint8], Len(5), Filler()]  # default filler mode
 
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
-    assert_general_field_checks(f, frozenset, "some_field", True, False, "BBBBB", 5, 5)
+    assert_general_field_checks(f, frozenset, "TestStructure.some_field", True, False, "BBBBB", 5, 5)
 
     inst = TestStructure(some_field=frozenset((1, 0, 2, 3)))  # zero (==int()) Filler should be stripped after parsing
     inst2 = TestStructure(some_field=[1, 2, 0, 3]) # should coerce
@@ -1185,7 +1185,7 @@ def test_array_deque():
         some_field: Annotated[ArrayDeque[Uint8], Len(5), Filler()]
 
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), ArrayField)
-    assert_general_field_checks(f, deque, "some_field", True, False, "BBBBB", 5, 5)
+    assert_general_field_checks(f, deque, "TestStructure.some_field", True, False, "BBBBB", 5, 5)
 
     inst = TestStructure(some_field=deque((1, 2, 3)))
     inst2 = TestStructure(some_field=[1, 2, 3]) # should coerce
@@ -1456,11 +1456,11 @@ def test_outlet_default():
     
     # normal field
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
-    assert_general_field_checks(f, int, "some_field", True, False, "H", 1, 2)
+    assert_general_field_checks(f, int, "TestStructure.some_field", True, False, "H", 1, 2)
     
     # outlet field
     assert isinstance(f := TestStructure.struct_fields.get("double"), IntegerField)
-    assert_general_field_checks(f, int, "double", True, True, "H", 1, 2)
+    assert_general_field_checks(f, int, "TestStructure.double", True, True, "H", 1, 2)
 
     # together
     assert TestStructure.__bindantic_struct_code__ == ">HH"
@@ -1517,15 +1517,15 @@ def test_nested_structure():
         substructure: SubStruct
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
-    assert_general_field_checks(f, int, "some_field", True, False, "H", 1, 2)
+    assert_general_field_checks(f, int, "TestStructure.some_field", True, False, "H", 1, 2)
 
     # substructure should be a special field
     assert isinstance(f := TestStructure.struct_fields.get("substructure"), NestedStructField)
-    assert_general_field_checks(f, SubStruct, "substructure", True, False, "1s", 1, 1)
+    assert_general_field_checks(f, SubStruct, "TestStructure.substructure", True, False, "1s", 1, 1)
 
     # substructure should contain integer as normal
     assert isinstance(f := f.type_annotation.struct_fields.get("some_nested_field"), IntegerField)
-    assert_general_field_checks(f, int, "some_nested_field", True, False, "B", 1, 1)
+    assert_general_field_checks(f, int, "SubStruct.some_nested_field", True, False, "B", 1, 1)
     
     # instantiation
     inst = TestStructure(
@@ -1551,15 +1551,15 @@ def test_nested_structure_inline():
         substructure: SubStruct
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
-    assert_general_field_checks(f, int, "some_field", True, False, "H", 1, 2)
+    assert_general_field_checks(f, int, "TestStructure.some_field", True, False, "H", 1, 2)
 
     # substructure should be a special field
     assert isinstance(f := TestStructure.struct_fields.get("substructure"), NestedStructField)
-    assert_general_field_checks(f, TestStructure.SubStruct, "substructure", True, False, "1s", 1, 1)
+    assert_general_field_checks(f, TestStructure.SubStruct, "TestStructure.substructure", True, False, "1s", 1, 1)
 
     # substructure should contain integer as normal
     assert isinstance(f := f.type_annotation.struct_fields.get("some_nested_field"), IntegerField)
-    assert_general_field_checks(f, int, "some_nested_field", True, False, "B", 1, 1)
+    assert_general_field_checks(f, int, "SubStruct.some_nested_field", True, False, "B", 1, 1)
     
     # instantiation
     inst = TestStructure(
@@ -1586,21 +1586,21 @@ def test_array_of_nested_structures():
         substructures: Annotated[ArrayList[SubStruct], Len(3)]
     
     assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
-    assert_general_field_checks(f, int, "some_field", True, False, "H", 1, 2)
+    assert_general_field_checks(f, int, "TestStructure.some_field", True, False, "H", 1, 2)
 
     # substructure should now be a list
     assert isinstance(f := TestStructure.struct_fields.get("substructures"), ArrayField)
-    assert_general_field_checks(f, list, "substructures", True, False, "3s3s3s", 3, 9)
+    assert_general_field_checks(f, list, "TestStructure.substructures", True, False, "3s3s3s", 3, 9)
 
     # substructure list should contain substructure
     assert isinstance(f := f.element_field, NestedStructField)
-    assert_general_field_checks(f, SubStruct, "substructures.__element__", False, False, "3s", 1, 3)
+    assert_general_field_checks(f, SubStruct, "TestStructure.substructures.__element__", False, False, "3s", 1, 3)
 
     # substructure should contain integers as normal
     assert isinstance(i := f.type_annotation.struct_fields.get("some_nested_field"), IntegerField)
-    assert_general_field_checks(i, int, "some_nested_field", True, False, "B", 1, 1)
+    assert_general_field_checks(i, int, "SubStruct.some_nested_field", True, False, "B", 1, 1)
     assert isinstance(i := f.type_annotation.struct_fields.get("wider_variable"), IntegerField)
-    assert_general_field_checks(i, int, "wider_variable", True, False, "H", 1, 2)
+    assert_general_field_checks(i, int, "SubStruct.wider_variable", True, False, "H", 1, 2)
     
     # instantiation
     inst = TestStructure(
@@ -1623,53 +1623,296 @@ def test_array_of_nested_structures():
 
 ## Union testing ##
 
-def test_union():
+def test_union_int_literal():
     class SubStructA(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
         short: Uint8
-        wide: typing.Literal[2]
+        disc: Lit8[typing.Literal[2]] = 2
     
     class SubStructB(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
-        wide: typing.Literal[3]
-        short: Uint8
+        disc: Lit8[typing.Literal[3]] = 3
+        short: Uint16
 
     class TestStructure(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
         some_field: Uint16
-        substructure: Annotated[typing.Union[SubStructA, SubStructB], pydantic.Discriminator("wide")]
+        substructure: Annotated[typing.Union[SubStructA, SubStructB], pydantic.Discriminator("disc")]
     
-    assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
-    assert_general_field_checks(f, int, "some_field", True, False, "H", 1, 2)
+    assert isinstance(f := TestStructure.struct_fields.get("substructure"), UnionField)
+    assert_general_field_checks(f, typing.Union, "TestStructure.substructure", True, False, "3s", 1, 3)
 
-    ## substructure should now be a list
-    #assert isinstance(f := TestStructure.struct_fields.get("substructures"), ArrayField)
-    #assert_general_field_checks(f, list, "substructures", True, False, "3s3s3s", 3, 9)
-#
-    ## substructure list should contain substructure
-    #assert isinstance(f := f.element_field, NestedStructField)
-    #assert_general_field_checks(f, SubStruct, "substructures.__element__", False, False, "3s", 1, 3)
-#
-    ## substructure should contain integers as normal
-    #assert isinstance(i := f.type_annotation.struct_fields.get("some_nested_field"), IntegerField)
-    #assert_general_field_checks(i, int, "some_nested_field", True, False, "B", 1, 1)
-    #assert isinstance(i := f.type_annotation.struct_fields.get("wider_variable"), IntegerField)
-    #assert_general_field_checks(i, int, "wider_variable", True, False, "H", 1, 2)
-    #
-    ## instantiation
-    #inst = TestStructure(
-    #    some_field=0x56,
-    #    substructures=[
-    #        {"some_nested_field": 0x78, "wider_variable": 0x00},
-    #        {"some_nested_field": 0x79, "wider_variable": 0x00},
-    #        {"some_nested_field": 0x7A, "wider_variable": 0x00},
-    #    ]
-    #)
-    #binary_rep = inst.struct_dump_bytes()
-    #assert binary_rep == b"\x00\x56\x78\0\0\x79\0\0\x7A\0\0"
-#
-    ## parsing
-    #reconstruct = TestStructure.struct_validate_bytes(binary_rep)
-    #assert reconstruct == inst
-    ## check that dict elements are properly converted
-    #assert reconstruct.substructures[0] == SubStruct(some_nested_field=0x78, wider_variable=0x0)
+    ## instantiation with SubStructA
+    inst = TestStructure(
+        some_field=0x56,
+        substructure={"short": 0xAB, "disc": 2}
+    )
+    binary_rep = inst.struct_dump_bytes()
+    assert binary_rep == b"\x00\x56\xAB\x02\0"
+    
+    # unpack and validate again
+    reconstruct = TestStructure.struct_validate_bytes(binary_rep)
+    assert type(reconstruct.substructure) is SubStructA
+    assert reconstruct.substructure.disc == 2
+    assert reconstruct == inst
+
+    # with SubStructB should export other layout
+    inst.substructure = SubStructB(short=0xAB)
+    binary_rep = inst.struct_dump_bytes()
+    assert binary_rep == b"\x00\x56\x03\0\xAB"
+
+    # unpack and validate again. This should now select SubStructB
+    reconstruct = TestStructure.struct_validate_bytes(binary_rep)
+    assert type(reconstruct.substructure) is SubStructB
+    assert reconstruct.substructure.disc == 3
+    assert reconstruct == inst
+
+
+def test_union_chr_literal():
+    class SubStructA(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        short: Uint8
+        disc: LitChar[typing.Literal["2"]] = "2"
+    
+    class SubStructB(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        disc: LitChar[typing.Literal["3"]] = "3"
+        short: Uint16
+
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Uint16
+        substructure: Annotated[typing.Union[SubStructA, SubStructB], pydantic.Discriminator("disc")]
+    
+    assert isinstance(f := TestStructure.struct_fields.get("substructure"), UnionField)
+    assert_general_field_checks(f, typing.Union, "TestStructure.substructure", True, False, "3s", 1, 3)
+
+    ## instantiation with SubStructA
+    inst = TestStructure(
+        some_field=0x56,
+        substructure={"short": 0xAB, "disc": "2"}
+    )
+    binary_rep = inst.struct_dump_bytes()
+    assert binary_rep == b"\x00\x56\xAB2\0"
+    
+    # unpack and validate again
+    reconstruct = TestStructure.struct_validate_bytes(binary_rep)
+    assert type(reconstruct.substructure) is SubStructA
+    assert reconstruct.substructure.disc == "2"
+    assert reconstruct == inst
+
+    # with SubStructB should export other layout
+    inst.substructure = SubStructB(short=0xAB)
+    binary_rep = inst.struct_dump_bytes()
+    assert binary_rep == b"\x00\x563\0\xAB"
+
+    # unpack and validate again. This should now select SubStructB
+    reconstruct = TestStructure.struct_validate_bytes(binary_rep)
+    assert type(reconstruct.substructure) is SubStructB
+    assert reconstruct.substructure.disc == "3"
+    assert reconstruct == inst
+
+
+def test_union_string_literal():
+    class SubStructA(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        short: Uint8
+        disc: Annotated[LitString[typing.Literal["Hoha"]], Len(5)] = "Hoha"
+    
+    class SubStructB(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        disc: Annotated[LitString[typing.Literal["No"]], Len(2)] = "No"
+        short: Uint16
+
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Uint16
+        substructure: Annotated[typing.Union[SubStructA, SubStructB], pydantic.Discriminator("disc")]
+    
+    assert isinstance(f := TestStructure.struct_fields.get("substructure"), UnionField)
+    assert_general_field_checks(f, typing.Union, "TestStructure.substructure", True, False, "6s", 1, 6)
+
+    ## instantiation with SubStructA
+    inst = TestStructure(
+        some_field=0x56,
+        substructure={"short": 0xAB, "disc": "Hoha"}
+    )
+    binary_rep = inst.struct_dump_bytes()
+    assert binary_rep == b"\x00\x56\xABHoha\0"
+    
+    # unpack and validate again
+    reconstruct = TestStructure.struct_validate_bytes(binary_rep)
+    assert type(reconstruct.substructure) is SubStructA
+    assert reconstruct.substructure.disc == "Hoha"
+    assert reconstruct == inst
+
+    # with SubStructB should export other layout
+    inst.substructure = SubStructB(short=0xAB)
+    binary_rep = inst.struct_dump_bytes()
+    assert binary_rep == b"\x00\x56No\0\xAB\0\0"
+
+    # unpack and validate again. This should now select SubStructB
+    reconstruct = TestStructure.struct_validate_bytes(binary_rep)
+    assert type(reconstruct.substructure) is SubStructB
+    assert reconstruct.substructure.disc == "No"
+    assert reconstruct == inst
+
+
+def test_union_errors_without_discriminator():
+    class SubStructA(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        short: Uint8
+        disc: Lit8[typing.Literal[2]] = 2
+    
+    class SubStructB(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        disc: Lit8[typing.Literal[3]] = 3
+        short: Uint16
+
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Uint16
+        substructure: typing.Union[SubStructA, SubStructB]
+    
+    # test construction with invalid discriminator
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        inst = TestStructure(
+            some_field=0x56,
+            substructure={"short": 0xAB, "disc": 6}
+        )
+    e = exc_info.value
+    assert e.error_count() == 2
+    assert e.errors()[0]["type"] == "literal_error"
+    assert e.errors()[1]["type"] == "literal_error"
+
+    # test parsing with invalid discriminator
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\x00\x56\x06\0\xAB")
+    e = exc_info.value
+    assert e.error_count() == 2
+    assert e.errors()[0]["type"] == "literal_error"
+    assert e.errors()[1]["type"] == "literal_error"
+
+
+def test_union_errors_with_discriminator():
+    class SubStructA(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        short: Uint8
+        disc: Lit8[typing.Literal[2]] = 2
+    
+    class SubStructB(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        disc: Lit8[typing.Literal[3]] = 3
+        short: Uint16
+
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Uint16
+        substructure: Annotated[typing.Union[SubStructA, SubStructB], pydantic.Discriminator("disc")]
+    
+    # test construction with invalid discriminator
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        inst = TestStructure(
+            some_field=0x56,
+            substructure={"short": 0xAB, "disc": 6}
+        )
+    e = exc_info.value
+    assert e.error_count() == 1
+    assert e.errors()[0]["type"] == "union_tag_invalid"
+
+    # test parsing with invalid discriminator
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\x00\x56\x06\0\xAB")
+    e = exc_info.value
+    assert e.error_count() == 2
+    assert e.errors()[0]["type"] == "union_tag_invalid"
+    assert e.errors()[1]["type"] == "union_tag_invalid"
+
+
+def test_union_multiple_disc_values():
+    class SubStructA(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        short: Uint8
+        disc: Lit8[typing.Literal[2, 5]] = 2
+    
+    class SubStructB(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        disc: Lit8[typing.Literal[3, 9]] = 3
+        short: Uint16
+
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Uint16
+        substructure: Annotated[typing.Union[SubStructA, SubStructB], pydantic.Discriminator("disc")]
+    
+    # all the values should work fine for SubStructA
+    inst = TestStructure(
+        some_field=0x56,
+        substructure={"short": 0xAB, "disc": 2}
+    )
+    assert isinstance(inst.substructure, SubStructA)
+    inst = TestStructure.struct_validate_bytes(b"\x00\x56\xAB\x02\0")
+    assert isinstance(inst.substructure, SubStructA)
+    
+    # all the values should work fine
+    inst = TestStructure(
+        some_field=0x56,
+        substructure={"short": 0xAB, "disc": 5}
+    )
+    assert isinstance(inst.substructure, SubStructA)
+    inst = TestStructure.struct_validate_bytes(b"\x00\x56\xAB\x05\0")
+    assert isinstance(inst.substructure, SubStructA)
+
+    # all the values should work fine for SubStructB
+    inst = TestStructure(
+        some_field=0x56,
+        substructure={"short": 0xAB, "disc": 3}
+    )
+    assert isinstance(inst.substructure, SubStructB)
+    inst = TestStructure.struct_validate_bytes(b"\x00\x56\x03\0\xAB")
+    assert isinstance(inst.substructure, SubStructB)
+
+    # all the values should work fine for SubStructB
+    inst = TestStructure(
+        some_field=0x56,
+        substructure={"short": 0xAB, "disc": 9}
+    )
+    assert isinstance(inst.substructure, SubStructB)
+    inst = TestStructure.struct_validate_bytes(b"\x00\x56\x09\0\xAB")
+    assert isinstance(inst.substructure, SubStructB)
+
+    # test construction with invalid discriminator should still fail
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        inst = TestStructure(
+            some_field=0x56,
+            substructure={"short": 0xAB, "disc": 6}
+        )
+    e = exc_info.value
+    assert e.error_count() == 1
+    assert e.errors()[0]["type"] == "union_tag_invalid"
+
+    # test parsing with invalid discriminator
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\x00\x56\x06\0\xAB")
+    e = exc_info.value
+    assert e.error_count() == 2
+    assert e.errors()[0]["type"] == "union_tag_invalid"
+    assert e.errors()[1]["type"] == "union_tag_invalid"
+
+
+def test_create_invalid_union():
+    with pytest.raises(TypeError):
+        class SubStructA(BaseStruct):
+            model_config = StructConfigDict(byte_order="big-endian")
+            short: Uint8
+            disc: Lit8[typing.Literal[2]] = 2
+        
+        class SubStructB(BaseStruct):
+            model_config = StructConfigDict(byte_order="big-endian")
+            disc: Lit8[typing.Literal[2]] = 2
+            short: Uint16
+
+        class TestStructure(BaseStruct):
+            model_config = StructConfigDict(byte_order="big-endian")
+            some_field: Uint16
+            substructure: Annotated[typing.Union[SubStructA, SubStructB], pydantic.Discriminator("disc")]

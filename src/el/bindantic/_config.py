@@ -93,6 +93,9 @@ class LenInfo(FieldConfigItem[int]):
 class EncodingInfo(FieldConfigItem[str]):
     pass
 
+class DiscriminatorInfo(FieldConfigItem[str]):
+    pass
+
 @typing.final
 class FillDefaultConstructor:
     pass
@@ -189,18 +192,27 @@ class FieldConfigOptions:
                 # maximum length (from pydantic) defines the binary length.
                 case annotated_types.MaxLen():
                     self.set_from_item(LenInfo(meta_element.max_length))
+                
+                # union discriminator (from pydantic)
+                case pydantic.Discriminator():
+                    self.set_from_item(DiscriminatorInfo(meta_element.discriminator))
     
-    def get_with_error[VT](self, field: "BaseField", opt: type[FieldConfigItem[VT]], default: VT | None = None) -> VT:
+    def get_with_error[VT](self, field: "BaseField", opt: type[FieldConfigItem[VT]], default: VT | BindanticUndefinedType = BindanticUndefined) -> VT:
         """
         Gets the value of a specific config options if it was passed, a default if not
         and throws an error if no default available.
         """
         if opt in self.items:
             return self.items[opt].value
-        elif default is not None:
+        elif default is not BindanticUndefined:
             return default
         else:
             raise TypeError(f"'{field.__class__.__name__}' '{field.field_name}' is missing required config option: '{opt.__name__.removesuffix("Info")}'")
 
 
-
+class StructPackingError(Exception):
+    """
+    Error when packing or unpacking structure data and
+    preprocessing/postprocessing it into python objects.
+    """
+    pass

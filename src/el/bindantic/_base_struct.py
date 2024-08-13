@@ -17,17 +17,9 @@ import struct
 from typing import ClassVar
 from ._deps import pydantic
 from ._struct_construction import StructMetaclass, PyStructBaseTypes
-from ._config import StructConfigDict
+from ._config import StructConfigDict, StructPackingError
 if typing.TYPE_CHECKING:
     from ._fields import BaseField
-
-
-class StructPackingError(Exception):
-    """
-    Error when packing or unpacking structure data and
-    preprocessing/postprocessing it into python objects.
-    """
-    pass
 
 
 class BaseStruct(pydantic.BaseModel, metaclass=StructMetaclass):

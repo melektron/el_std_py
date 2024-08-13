@@ -75,7 +75,8 @@ class StructMetaclass(ModelMetaclass):
             struct_field = get_field_from_field_info(
                 field_name,
                 field,
-                True
+                True,
+                [cls_name]
             )
             if struct_field is None:    # not a struct field
                 continue
