@@ -32,7 +32,16 @@ LEVEL_COLORS = {
 RESET = '\033[0m'  # Reset color
 GREY = '\033[90m'  # Grey for logger name and line number
 
-type LogLevel = int | str
+type LogLevel = int | typing.Literal[
+    "CRITICAL",
+    "FATAL",
+    "ERROR",
+    "WARN",
+    "WARNING",
+    "INFO",
+    "DEBUG",
+    "NOTSET",
+]
 
 
 class TerminalController(logging.Handler):
@@ -216,3 +225,17 @@ def get_term() -> TerminalController:
         return _TERMINAL
     
     raise SetupError("el.terminal.setup_simple_terminal() needs to be called before this.")
+
+
+def set_root_log_level(level: LogLevel) -> int | None:
+    """
+    Sets the log level of the root logger and returns its integer
+    representation.
+    If the level is not valid, None is returned and nothing happens
+    """
+    try:
+        root_logger = logging.getLogger()
+        root_logger.setLevel(level)
+        return root_logger.level
+    except (ValueError, TypeError) as e:
+        return None
