@@ -17,7 +17,7 @@ import sys
 import pydantic
 import annotated_types
 from collections import deque
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 import typing
 
 from el.bindantic import *
@@ -253,11 +253,205 @@ def test_int64():
     assert_validation_error(exc_info, "greater_than_equal", tv, {"ge": tv + 1})
 
 
+## Integer literal tests ##
+
+def test_litU8():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: LitU8[Literal[12]] = 12
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False,"B", 1, 1)
+    assert_general_integer_checks(f, False)
+
+    # check correct literal values 
+    inst = TestStructure(some_field=12)
+    assert inst.some_field == 12
+    inst = TestStructure.struct_validate_bytes(b"\x0C")
+    assert inst.some_field == 12
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=13)
+    assert_validation_error(exc_info, "literal_error", 13)
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\x0D")
+    assert_validation_error(exc_info, "literal_error")
+
+
+def test_litU16():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: LitU16[Literal[12]] = 12
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False, "H", 1, 2)
+    assert_general_integer_checks(f, False)
+
+    # check correct literal values 
+    inst = TestStructure(some_field=12)
+    assert inst.some_field == 12
+    inst = TestStructure.struct_validate_bytes(b"\0\x0C")
+    assert inst.some_field == 12
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=13)
+    assert_validation_error(exc_info, "literal_error", 13)
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\x0D")
+    assert_validation_error(exc_info, "literal_error")
+
+
+def test_litU32():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: LitU32[Literal[12]] = 12
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False, "I", 1, 4)
+    assert_general_integer_checks(f, False)
+
+    # check correct literal values 
+    inst = TestStructure(some_field=12)
+    assert inst.some_field == 12
+    inst = TestStructure.struct_validate_bytes(b"\0\0\0\x0C")
+    assert inst.some_field == 12
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=13)
+    assert_validation_error(exc_info, "literal_error", 13)
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\0\0\x0D")
+    assert_validation_error(exc_info, "literal_error")
+    
+
+def test_litU64():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: LitU64[Literal[12]] = 12
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False, "Q", 1, 8)
+    assert_general_integer_checks(f, False)
+
+    # check correct literal values 
+    inst = TestStructure(some_field=12)
+    assert inst.some_field == 12
+    inst = TestStructure.struct_validate_bytes(b"\0\0\0\0\0\0\0\x0C")
+    assert inst.some_field == 12
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=13)
+    assert_validation_error(exc_info, "literal_error", 13)
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\0\0\0\0\0\0\x0D")
+    assert_validation_error(exc_info, "literal_error")
+
+
+def test_lit8():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Lit8[Literal[12]] = 12
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False, "b", 1, 1)
+    assert_general_integer_checks(f, True)
+
+    # check correct literal values 
+    inst = TestStructure(some_field=12)
+    assert inst.some_field == 12
+    inst = TestStructure.struct_validate_bytes(b"\x0C")
+    assert inst.some_field == 12
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=13)
+    assert_validation_error(exc_info, "literal_error", 13)
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\x0D")
+    assert_validation_error(exc_info, "literal_error")
+
+
+def test_lit16():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Lit16[Literal[12]] = 12
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False, "h", 1, 2)
+    assert_general_integer_checks(f, True)
+
+    # check correct literal values 
+    inst = TestStructure(some_field=12)
+    assert inst.some_field == 12
+    inst = TestStructure.struct_validate_bytes(b"\0\x0C")
+    assert inst.some_field == 12
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=13)
+    assert_validation_error(exc_info, "literal_error", 13)
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\x0D")
+    assert_validation_error(exc_info, "literal_error")
+
+
+def test_lit32():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Lit32[Literal[12]] = 12
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False, "i", 1, 4)
+    assert_general_integer_checks(f, True)
+
+    # check correct literal values 
+    inst = TestStructure(some_field=12)
+    assert inst.some_field == 12
+    inst = TestStructure.struct_validate_bytes(b"\0\0\0\x0C")
+    assert inst.some_field == 12
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=13)
+    assert_validation_error(exc_info, "literal_error", 13)
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\0\0\x0D")
+    assert_validation_error(exc_info, "literal_error")
+    
+
+def test_lit64():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Lit64[Literal[12]] = 12
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), IntegerField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False, "q", 1, 8)
+    assert_general_integer_checks(f, True)
+
+    # check correct literal values 
+    inst = TestStructure(some_field=12)
+    assert inst.some_field == 12
+    inst = TestStructure.struct_validate_bytes(b"\0\0\0\0\0\0\0\x0C")
+    assert inst.some_field == 12
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=13)
+    assert_validation_error(exc_info, "literal_error", 13)
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\0\0\0\0\0\0\x0D")
+    assert_validation_error(exc_info, "literal_error")
+
+
 ## Enumeration field ##
 
 def assert_enum_out_of_range_error(
     exc_info: pytest.ExceptionInfo[ValueError],
-    int_type: typing.Literal["Uint8", "Uint16", "Uint24", "Uint32", "Int8", "Int16", "Int24", "Int32"]
+    int_type: Literal["Uint8", "Uint16", "Uint24", "Uint32", "Int8", "Int16", "Int24", "Int32"]
 ):
     msg = str(exc_info.value).lower()
     assert "EnumField".lower() in msg
@@ -494,7 +688,7 @@ def test_enum64():
     assert_enum_out_of_range_error(exc_info, "Int64")
 
 
-def test_struct_enum_test_int_enum():
+def test_enum_variant_int_enum():
     class TestIntEnum(enum.IntEnum):
         FIRST = 0
         SECOND = 1
@@ -506,7 +700,9 @@ def test_struct_enum_test_int_enum():
         some_field: Enum64[TestIntEnum]
 
     TestStructure(some_field=1)     # valid enum value
-    TestStructure(some_field=4)    # valid enum value
+    inst = TestStructure(some_field=4)    # valid enum value
+    assert isinstance(inst.some_field, int)
+
     with pytest.raises(pydantic.ValidationError) as exc_info:
         TestStructure(some_field=10)    # invalid enum value
     assert_validation_error(exc_info, "enum", 10)
@@ -519,8 +715,15 @@ def test_struct_enum_test_int_enum():
             some_field: EnumU16[LowerLimit]
     assert_enum_out_of_range_error(exc_info, "Uint16")
 
+    with pytest.raises(ValueError) as exc_info:
+        class UpperLimit(enum.IntEnum):
+            FIRST = 2**8
+        class UpperLimitStructure(BaseStruct):
+            some_field: EnumU8[UpperLimit]
+    assert_enum_out_of_range_error(exc_info, "Uint8")
 
-def test_struct_enum_test_flag():
+
+def test_enum_variant_flag():
     # make sure flag can be used and is properly serialized
     class TestFlag(enum.Flag):
         FIRST = enum.auto()
@@ -551,9 +754,9 @@ def test_struct_enum_test_flag():
     assert_enum_out_of_range_error(exc_info, "Uint8")
     
 
-def test_struct_enum_test_int_flag():
+def test_enum_variant_int_flag():
     # make sure IntFlag can be used and is properly serialized
-    class TestFlag(enum.IntFlag):
+    class TestIntFlag(enum.IntFlag):
         FIRST = enum.auto()
         SECOND = enum.auto()
         THIRD = enum.auto()
@@ -561,13 +764,13 @@ def test_struct_enum_test_int_flag():
         FIFTH = enum.auto()
 
     class TestStructure(BaseStruct):
-        some_field: EnumU8[TestFlag]
+        some_field: EnumU8[TestIntFlag]
 
     inst = TestStructure(some_field=1)     # valid enum value
-    assert inst.some_field == TestFlag.FIRST
+    assert inst.some_field == TestIntFlag.FIRST
     assert inst.struct_dump_bytes() == b"\x01"
     inst = TestStructure(some_field=6)     # valid enum value
-    assert inst.some_field == TestFlag.THIRD | TestFlag.SECOND
+    assert inst.some_field == TestIntFlag.THIRD | TestIntFlag.SECOND
     assert inst.struct_dump_bytes() == b"\x06"
     # IntFlag does not error when assigning invalid values
     inst = TestStructure(some_field=104)    # invalid enum value
@@ -581,19 +784,313 @@ def test_struct_enum_test_int_flag():
     assert_enum_out_of_range_error(exc_info, "Uint8")
 
 
-def test_struct_enum_test_str():
+def test_enum_variant_str():
     # make sure StrEnum is forbidden
-    class TestFlag(enum.StrEnum):
+    class TestStrEnum(enum.StrEnum):
         FIRST = "1"
         SECOND = "2"
         THIRD = "3"
         FOURTH = "4"
         FIFTH = "5"
-    # make sure the limit message is properly formatted for IntFlags
+    # make sure the limit message is properly formatted
     with pytest.raises(TypeError) as exc_info:
         class TestStructure(BaseStruct):
-            some_field: EnumU8[TestFlag]
+            some_field: EnumU8[TestStrEnum]
     assert "StrEnum" in str(exc_info.value)
+
+
+## Enumeration literals ##
+
+def test_enumU8_literal():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: EnumU8[Literal[KnownGoodEnumUnsigned.THIRD]] = 2
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), EnumField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False,"B", 1, 1)
+    assert_general_integer_checks(f, False)
+
+    # check correct literal values 
+    inst = TestStructure(some_field=KnownGoodEnumUnsigned.THIRD)
+    assert inst.some_field == KnownGoodEnumUnsigned.THIRD
+    inst = TestStructure.struct_validate_bytes(b"\x02")
+    assert inst.some_field == KnownGoodEnumUnsigned.THIRD
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=2)    # pydantic unfortunately doesn't coerce ints to enum literals
+    assert_validation_error(exc_info, "literal_error", 2)
+    
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\x03")
+    assert_validation_error(exc_info, "literal_error")
+    
+    with pytest.raises(StructPackingError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\x06")    # not a valid enum value
+    assert "ValueError" in str(exc_info.value) 
+    assert "is not a valid" in str(exc_info.value) 
+
+
+def test_enumU16_literal():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: EnumU16[Literal[KnownGoodEnumUnsigned.THIRD]] = 2
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), EnumField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False, "H", 1, 2)
+    assert_general_integer_checks(f, False)
+
+    # check correct literal values 
+    inst = TestStructure(some_field=KnownGoodEnumUnsigned.THIRD)
+    assert inst.some_field == KnownGoodEnumUnsigned.THIRD
+    inst = TestStructure.struct_validate_bytes(b"\0\x02")
+    assert inst.some_field == KnownGoodEnumUnsigned.THIRD
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=2)    # pydantic unfortunately doesn't coerce ints to enum literals
+    assert_validation_error(exc_info, "literal_error", 2)
+    
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\x03")
+    assert_validation_error(exc_info, "literal_error")
+    
+    with pytest.raises(StructPackingError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\x06")    # not a valid enum value
+    assert "ValueError" in str(exc_info.value) 
+    assert "is not a valid" in str(exc_info.value) 
+
+
+def test_enumU32_literal():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: EnumU32[Literal[KnownGoodEnumUnsigned.THIRD]] = 2
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), EnumField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False, "I", 1, 4)
+    assert_general_integer_checks(f, False)
+
+    # check correct literal values 
+    inst = TestStructure(some_field=KnownGoodEnumUnsigned.THIRD)
+    assert inst.some_field == KnownGoodEnumUnsigned.THIRD
+    inst = TestStructure.struct_validate_bytes(b"\0\0\0\x02")
+    assert inst.some_field == KnownGoodEnumUnsigned.THIRD
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=2)    # pydantic unfortunately doesn't coerce ints to enum literals
+    assert_validation_error(exc_info, "literal_error", 2)
+    
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\0\0\x03")
+    assert_validation_error(exc_info, "literal_error")
+    
+    with pytest.raises(StructPackingError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\0\0\x06")    # not a valid enum value
+    assert "ValueError" in str(exc_info.value) 
+    assert "is not a valid" in str(exc_info.value) 
+    
+
+def test_enumU64_literal():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: EnumU64[Literal[KnownGoodEnumUnsigned.THIRD]] = 2
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), EnumField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False, "Q", 1, 8)
+    assert_general_integer_checks(f, False)
+
+    # check correct literal values 
+    inst = TestStructure(some_field=KnownGoodEnumUnsigned.THIRD)
+    assert inst.some_field == KnownGoodEnumUnsigned.THIRD
+    inst = TestStructure.struct_validate_bytes(b"\0\0\0\0\0\0\0\x02")
+    assert inst.some_field == KnownGoodEnumUnsigned.THIRD
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=2)    # pydantic unfortunately doesn't coerce ints to enum literals
+    assert_validation_error(exc_info, "literal_error", 2)
+    
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\0\0\0\0\0\0\x03")
+    assert_validation_error(exc_info, "literal_error")
+    
+    with pytest.raises(StructPackingError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\0\0\0\0\0\0\x06")    # not a valid enum value
+    assert "ValueError" in str(exc_info.value) 
+    assert "is not a valid" in str(exc_info.value) 
+
+
+def test_enum8_literal():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Enum8[Literal[KnownGoodEnumUnsigned.THIRD]] = 2
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), EnumField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False, "b", 1, 1)
+    assert_general_integer_checks(f, True)
+
+    # check correct literal values 
+    inst = TestStructure(some_field=KnownGoodEnumUnsigned.THIRD)
+    assert inst.some_field == KnownGoodEnumUnsigned.THIRD
+    inst = TestStructure.struct_validate_bytes(b"\x02")
+    assert inst.some_field == KnownGoodEnumUnsigned.THIRD
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=2)    # pydantic unfortunately doesn't coerce ints to enum literals
+    assert_validation_error(exc_info, "literal_error", 2)
+    
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\x03")
+    assert_validation_error(exc_info, "literal_error")
+    
+    with pytest.raises(StructPackingError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\x06")    # not a valid enum value
+    assert "ValueError" in str(exc_info.value) 
+    assert "is not a valid" in str(exc_info.value) 
+
+
+def test_enum16_literal():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Enum16[Literal[KnownGoodEnumUnsigned.THIRD]] = 2
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), EnumField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False, "h", 1, 2)
+    assert_general_integer_checks(f, True)
+
+    # check correct literal values 
+    inst = TestStructure(some_field=KnownGoodEnumUnsigned.THIRD)
+    assert inst.some_field == KnownGoodEnumUnsigned.THIRD
+    inst = TestStructure.struct_validate_bytes(b"\0\x02")
+    assert inst.some_field == KnownGoodEnumUnsigned.THIRD
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=2)    # pydantic unfortunately doesn't coerce ints to enum literals
+    assert_validation_error(exc_info, "literal_error", 2)
+    
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\x03")
+    assert_validation_error(exc_info, "literal_error")
+    
+    with pytest.raises(StructPackingError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\x06")    # not a valid enum value
+    assert "ValueError" in str(exc_info.value) 
+    assert "is not a valid" in str(exc_info.value) 
+
+
+def test_enum32_literal():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Enum32[Literal[KnownGoodEnumUnsigned.THIRD]] = 2
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), EnumField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False, "i", 1, 4)
+    assert_general_integer_checks(f, True)
+
+    # check correct literal values 
+    inst = TestStructure(some_field=KnownGoodEnumUnsigned.THIRD)
+    assert inst.some_field == KnownGoodEnumUnsigned.THIRD
+    inst = TestStructure.struct_validate_bytes(b"\0\0\0\x02")
+    assert inst.some_field == KnownGoodEnumUnsigned.THIRD
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=2)    # pydantic unfortunately doesn't coerce ints to enum literals
+    assert_validation_error(exc_info, "literal_error", 2)
+    
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\0\0\x03")
+    assert_validation_error(exc_info, "literal_error")
+    
+    with pytest.raises(StructPackingError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\0\0\x06")    # not a valid enum value
+    assert "ValueError" in str(exc_info.value) 
+    assert "is not a valid" in str(exc_info.value) 
+    
+
+def test_enum64_literal():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Enum64[Literal[KnownGoodEnumUnsigned.THIRD]] = 2
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), EnumField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False, "q", 1, 8)
+    assert_general_integer_checks(f, True)
+
+    # check correct literal values 
+    inst = TestStructure(some_field=KnownGoodEnumUnsigned.THIRD)
+    assert inst.some_field == KnownGoodEnumUnsigned.THIRD
+    inst = TestStructure.struct_validate_bytes(b"\0\0\0\0\0\0\0\x02")
+    assert inst.some_field == KnownGoodEnumUnsigned.THIRD
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure(some_field=2)    # pydantic unfortunately doesn't coerce ints to enum literals
+    assert_validation_error(exc_info, "literal_error", 2)
+    
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\0\0\0\0\0\0\x03")
+    assert_validation_error(exc_info, "literal_error")
+    
+    with pytest.raises(StructPackingError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\0\0\0\0\0\0\0\x06")    # not a valid enum value
+    assert "ValueError" in str(exc_info.value) 
+    assert "is not a valid" in str(exc_info.value) 
+
+
+def test_enum_literal_variant_int_enum():
+    class TestIntEnum(enum.IntEnum):
+        FIRST = 0
+        SECOND = 1
+        THIRD = 2
+        FOURTH = 3
+        FIFTH = 4
+
+    class TestStructure(BaseStruct):
+        some_field: EnumU8[Literal[TestIntEnum.THIRD]]
+
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), EnumField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False,"B", 1, 1)
+    assert_general_integer_checks(f, False)
+
+    # check correct literal values 
+    inst = TestStructure(some_field=TestIntEnum.THIRD)
+    assert inst.some_field == TestIntEnum.THIRD
+    inst = TestStructure.struct_validate_bytes(b"\x02")
+    assert inst.some_field == TestIntEnum.THIRD
+    # int enum literal should also support initializing from integer unlike normal enum
+    TestStructure(some_field=2)
+    assert inst.some_field == TestIntEnum.THIRD
+    
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\x03")
+    assert_validation_error(exc_info, "literal_error")
+    
+    with pytest.raises(StructPackingError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\x06")    # not a valid enum value
+    assert "ValueError" in str(exc_info.value) 
+    assert "is not a valid" in str(exc_info.value) 
+
+
+def test_enum_literal_variant_str():
+    # make sure StrEnum is forbidden
+    class TestStrEnum(enum.StrEnum):
+        FIRST = "1"
+        SECOND = "2"
+        THIRD = "3"
+        FOURTH = "4"
+        FIFTH = "5"
+    # make sure the limit message is properly formatted
+    with pytest.raises(TypeError) as exc_info:
+        class TestStructure(BaseStruct):
+            some_field: EnumU8[Literal[TestStrEnum.THIRD]]
+    assert "StrEnum" in str(exc_info.value)
+    assert "Type of Literal value" in str(exc_info.value)
+
+
+def test_enum_literal_wrong_type():
+    # make sure  any other type doesn't work and
+    # make sure the limit message is properly formatted
+    with pytest.raises(TypeError) as exc_info:
+        class TestStructure(BaseStruct):
+            some_field: EnumU8[Literal["Hi"]]
+    assert "<class 'str'>" in str(exc_info.value)
+    assert "Type of Literal value" in str(exc_info.value)
 
 
 ## Float Testing ##
@@ -647,6 +1144,28 @@ def test_char():
     with pytest.raises(pydantic.ValidationError) as exc_info:
         TestStructure(some_field="")    # too short
     assert_validation_error(exc_info, "string_too_short", "")
+
+
+def test_char_literal():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: LitChar[Literal["A", "B"]] = "A"
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), CharField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False,"c", 1, 1)
+
+    # check correct literal values 
+    inst = TestStructure(some_field="A")
+    assert inst.some_field == "A"
+    inst = TestStructure.struct_validate_bytes(b"B")
+    assert inst.some_field == "B"
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"C")
+    assert_validation_error(exc_info, "literal_error")
+
+    inst = TestStructure(some_field="A")
+    assert inst.struct_dump_bytes() == b"A"
 
 
 ## Bool testing ##
@@ -883,6 +1402,28 @@ def test_string_ignore():
     assert type(inst.some_field) is str
     assert inst.some_field == "Hi"
     inst.struct_dump_elements() # should not error
+
+
+def test_string_literal():
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Annotated[LitString[Literal["Hello", "You"]], Len(8, ignore=True)] = 12
+    
+    assert isinstance(f := TestStructure.struct_fields.get("some_field"), StringField)
+    assert_general_field_checks(f, Literal, "TestStructure.some_field", True, False,"8s", 1, 8)
+
+    # check correct literal values 
+    inst = TestStructure(some_field="Hello")
+    assert inst.some_field == "Hello"
+    inst = TestStructure.struct_validate_bytes(b"You\0\0\0\0\0")
+    assert inst.some_field == "You"
+
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"Hey!\0\0\0\0")
+    assert_validation_error(exc_info, "literal_error")
+
+    inst = TestStructure(some_field="Hello")
+    assert inst.struct_dump_bytes() == b"Hello\0\0\0"
 
 
 ## Padding tests ##
@@ -1627,11 +2168,11 @@ def test_union_int_literal():
     class SubStructA(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
         short: Uint8
-        disc: Lit8[typing.Literal[2]] = 2
+        disc: Lit8[Literal[2]] = 2
     
     class SubStructB(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
-        disc: Lit8[typing.Literal[3]] = 3
+        disc: Lit8[Literal[3]] = 3
         short: Uint16
 
     class TestStructure(BaseStruct):
@@ -1672,11 +2213,11 @@ def test_union_enum_literal():
     class SubStructA(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
         short: Uint8
-        disc: EnumU8[typing.Literal[KnownGoodEnumUnsigned.SECOND]] = KnownGoodEnumUnsigned.SECOND
+        disc: EnumU8[Literal[KnownGoodEnumUnsigned.SECOND]] = KnownGoodEnumUnsigned.SECOND
     
     class SubStructB(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
-        disc: EnumU8[typing.Literal[KnownGoodEnumUnsigned.THIRD]] = KnownGoodEnumUnsigned.THIRD
+        disc: EnumU8[Literal[KnownGoodEnumUnsigned.THIRD]] = KnownGoodEnumUnsigned.THIRD
         short: Uint16
 
     class TestStructure(BaseStruct):
@@ -1718,11 +2259,11 @@ def test_union_chr_literal():
     class SubStructA(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
         short: Uint8
-        disc: LitChar[typing.Literal["2"]] = "2"
+        disc: LitChar[Literal["2"]] = "2"
     
     class SubStructB(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
-        disc: LitChar[typing.Literal["3"]] = "3"
+        disc: LitChar[Literal["3"]] = "3"
         short: Uint16
 
     class TestStructure(BaseStruct):
@@ -1763,11 +2304,11 @@ def test_union_string_literal():
     class SubStructA(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
         short: Uint8
-        disc: Annotated[LitString[typing.Literal["Hoha"]], Len(5)] = "Hoha"
+        disc: Annotated[LitString[Literal["Hoha"]], Len(5)] = "Hoha"
     
     class SubStructB(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
-        disc: Annotated[LitString[typing.Literal["No"]], Len(2)] = "No"
+        disc: Annotated[LitString[Literal["No"]], Len(2)] = "No"
         short: Uint16
 
     class TestStructure(BaseStruct):
@@ -1808,11 +2349,11 @@ def test_union_errors_without_discriminator():
     class SubStructA(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
         short: Uint8
-        disc: Lit8[typing.Literal[2]] = 2
+        disc: Lit8[Literal[2]] = 2
     
     class SubStructB(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
-        disc: Lit8[typing.Literal[3]] = 3
+        disc: Lit8[Literal[3]] = 3
         short: Uint16
 
     class TestStructure(BaseStruct):
@@ -1844,11 +2385,11 @@ def test_union_errors_with_discriminator():
     class SubStructA(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
         short: Uint8
-        disc: Lit8[typing.Literal[2]] = 2
+        disc: Lit8[Literal[2]] = 2
     
     class SubStructB(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
-        disc: Lit8[typing.Literal[3]] = 3
+        disc: Lit8[Literal[3]] = 3
         short: Uint16
 
     class TestStructure(BaseStruct):
@@ -1879,11 +2420,11 @@ def test_union_errors_without_discriminator_enums():
     class SubStructA(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
         short: Uint8
-        disc: EnumU8[typing.Literal[KnownGoodEnumUnsigned.SECOND]] = KnownGoodEnumUnsigned.SECOND
+        disc: EnumU8[Literal[KnownGoodEnumUnsigned.SECOND]] = KnownGoodEnumUnsigned.SECOND
     
     class SubStructB(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
-        disc: EnumU8[typing.Literal[KnownGoodEnumUnsigned.THIRD]] = KnownGoodEnumUnsigned.THIRD
+        disc: EnumU8[Literal[KnownGoodEnumUnsigned.THIRD]] = KnownGoodEnumUnsigned.THIRD
         short: Uint16
 
     class TestStructure(BaseStruct):
@@ -1927,11 +2468,11 @@ def test_union_errors_with_discriminator_enums():
     class SubStructA(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
         short: Uint8
-        disc: EnumU8[typing.Literal[KnownGoodEnumUnsigned.SECOND]] = KnownGoodEnumUnsigned.SECOND
+        disc: EnumU8[Literal[KnownGoodEnumUnsigned.SECOND]] = KnownGoodEnumUnsigned.SECOND
     
     class SubStructB(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
-        disc: EnumU8[typing.Literal[KnownGoodEnumUnsigned.THIRD]] = KnownGoodEnumUnsigned.THIRD
+        disc: EnumU8[Literal[KnownGoodEnumUnsigned.THIRD]] = KnownGoodEnumUnsigned.THIRD
         short: Uint16
 
     class TestStructure(BaseStruct):
@@ -1973,11 +2514,11 @@ def test_union_multiple_disc_values():
     class SubStructA(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
         short: Uint8
-        disc: Lit8[typing.Literal[2, 5]] = 2
+        disc: Lit8[Literal[2, 5]] = 2
     
     class SubStructB(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
-        disc: Lit8[typing.Literal[3, 9]] = 3
+        disc: Lit8[Literal[3, 9]] = 3
         short: Uint16
 
     class TestStructure(BaseStruct):
@@ -2045,11 +2586,11 @@ def test_create_invalid_union():
         class SubStructA(BaseStruct):
             model_config = StructConfigDict(byte_order="big-endian")
             short: Uint8
-            disc: Lit8[typing.Literal[2]] = 2
+            disc: Lit8[Literal[2]] = 2
         
         class SubStructB(BaseStruct):
             model_config = StructConfigDict(byte_order="big-endian")
-            disc: Lit8[typing.Literal[2]] = 2
+            disc: Lit8[Literal[2]] = 2
             short: Uint16
 
         class TestStructure(BaseStruct):
