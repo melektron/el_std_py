@@ -1,6 +1,6 @@
 # bindantic
 
-Bindantic is an unofficial "extension" (one could call it a "mod") for the popular [pydantic](https://pydantic.dev/) data validation library.
+Bindantic is an unofficial "extension" (one could call it a "mod") for the popular [pydantic](https://docs.pydantic.dev/latest/) data validation library.
 It that adds support for defining, dumping and validating binary data structures (like in C/C++) while maintaining all pydantic features, meaning that data can be easily converted between JSON, Python and binary.
 
 This is extremely useful for efficient communication with systems programmed in C or C++ such as microcontrollers, over protocols like serial, where JSON might not be a viable solution both in terms of information density, transfer speed, processing power and memory limitation.

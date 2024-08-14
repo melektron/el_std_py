@@ -27,7 +27,7 @@ While I might write more comprehensive documentation for some features along the
 - ```el.typing_tools```: Utility functions for working with ```typing```
 - ```el.observable```: Data wrapper classes allowing the observation and chaining of value change events and thus declaratively defining data paths
 - ```el.datastore```: Zero-setup Data and configuration file handler that uses pydantic do define data models and ```asyncio``` to automatically store/load them to/from disc in the background without having to touch filepaths or files.
-- [```el.bindantic```](docs/bindantic.md): An unofficial "extension" (one could call it a "mod") for [pydantic](https://pydantic.dev/) that adds support for defining, dumping and validating binary data structures (like in C), while maintaining all pydantic features.
+- [```el.bindantic```](docs/bindantic.md): An unofficial "extension" (one could call it a "mod") for [pydantic](https://docs.pydantic.dev/latest/) that adds support for defining, dumping and validating binary data structures (like in C), while maintaining all pydantic features.
 
 
 ## Contribution
