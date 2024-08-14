@@ -25,3 +25,7 @@ Bindantic supports unions like pydantic however with the limitation that union m
 # ToDo
 
 - Add support for bitfields (fields aligned at bit level)
+- add len() support to get size of structure
+- add null termination guarantee for strings
+- add support for bytearray to BytesField
+- add float literal support
