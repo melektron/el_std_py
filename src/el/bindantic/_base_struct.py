@@ -99,7 +99,9 @@ class BaseStruct(pydantic.BaseModel, metaclass=StructMetaclass):
             return self.__bindantic_struct_inst__.pack(
                 *(self.struct_dump_elements())
             )
-        except struct.error as e:
+        except Exception as e:
+            if isinstance(e, StructPackingError):
+                raise
             raise StructPackingError(str(e))
 
     @classmethod
@@ -156,15 +158,20 @@ class BaseStruct(pydantic.BaseModel, metaclass=StructMetaclass):
             data: the binary representation of the structure
         
         Raises:
-            Anything that fields raise
+            StructPackingError containing any exception raised during unpacking and postprocessing
         
         Returns:
             the unpacked structure dict ready for validation
         """
         
-        return cls._struct_postprocess_elements(
-            cls.__bindantic_struct_inst__.unpack(data)
-        )
+        try:
+            return cls._struct_postprocess_elements(
+                cls.__bindantic_struct_inst__.unpack(data)
+            )
+        except Exception as e:
+            if isinstance(e, (StructPackingError, pydantic.ValidationError)):
+                raise   # substructures could cause such errors and they will be passed up directly
+            raise StructPackingError(f"{e.__class__.__name__}: {str(e)}")
     
     @classmethod
     def struct_validate_elements(cls, elements: tuple[PyStructBaseTypes, ...]) -> typing.Self:
@@ -187,9 +194,13 @@ class BaseStruct(pydantic.BaseModel, metaclass=StructMetaclass):
             the validated structure instance
         """
         try:
-            return cls.model_validate(cls._struct_postprocess_elements(elements))
+            dict_repr = cls._struct_postprocess_elements(elements)
         except Exception as e:
-            raise StructPackingError(str(e))
+            if isinstance(e, (StructPackingError, pydantic.ValidationError)):
+                raise   # substructures could cause such errors and they will be passed up directly
+            raise StructPackingError(f"{e.__class__.__name__}: {str(e)}")
+        
+        return cls.model_validate(dict_repr)
 
     @classmethod
     def struct_validate_bytes(cls, data: bytes | bytearray) -> typing.Self:

@@ -10,7 +10,11 @@
 Bindantic supports unions like pydantic however with the limitation that union members must be nested structures (substructures). When validating json/python, everything works like pydantic. When unpacking and validating from binary packed data, there are two discrimination schemes that are supported:
  
 - Left to right mode: Bindantic attempts to validate the binary data reserved for the union with each of the union types from left to right order, returning the first one that doesn't result in an unpacking or validation error. This works the same as the equally named pydantic discrimination mode and is the bindantic default. Be aware though that as of writing, the default mode for pydantic has been changed to smart, which doesn't exist for bindantic though the behavior in most sensible scenarios should not differ.
-- discriminated mode: The pydantic.Discriminator() annotation is used to specify a field in the substructures that is exclusively used to differentiate between the members. This also works the same for pydantic. Note that internally, this only unpacks the bytes to dict according to the correct type (all are attempted from left to right until the matching one is found) and still lets pydantic discriminate to the correct python type. Unlike for JSON data, this doesn't help that much with performance for binary unpacking because it might still be necessary to unpack up to all of the structure types before finding the matching one, because data isn't already provided as a dict-like object. Note that the discriminator has to be a hard-coded field, Bindantic does not support the use of tagging and callable discriminators.
+- discriminated mode: The pydantic.Discriminator() annotation is used to specify a field in the substructures that is exclusively used to differentiate between the members. This also works the same for pydantic. 
+ - Note that internally, this only unpacks the bytes to dict according to the correct type (all are attempted from left to right until the matching one is found) and still lets pydantic discriminate to the correct python type. 
+  - Unlike for JSON data, this doesn't help that much with performance for binary unpacking because it might still be necessary to unpack up to all of the structure types before finding the matching one, because data isn't already provided as a dict-like object. 
+  - Note that the discriminator has to be a hard-coded field, Bindantic does not support the use of tagging and callable discriminators.
+  - Unlike pydantic, bindantic does fully and properly support the use of enum literals as discriminators. When creating the structure, the enum type of the literal value is determined and stored as the type of the variable. When unpacking from binary, the field is post-processed in to that enum type so that pydantic can then properly constrain it to the enum values. Unfortunately, when validating JSON, pydantic doesn't convert enum values to enums when used in literals and enum literal fields can therefore not be properly parsed from json without a custom validator. (though they can be dumped to JSON just fine). Validating python is possible but it is required to use the literal enum directly, not just the value of the enumeration.
 
 # Limitations
 
@@ -21,6 +25,3 @@ Bindantic supports unions like pydantic however with the limitation that union m
 # ToDo
 
 - Add support for bitfields (fields aligned at bit level)
-- Add support for nested structures
-- Add setting do disable constraints for array, string, int, and other types, selectively
-- Add support for unions

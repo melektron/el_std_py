@@ -197,7 +197,7 @@ class PossiblyLiteralField[LT](BaseField):
         if self.literal_values is not None:
             return (self.literal_type(field), )
         else:
-            return super().packing_preprocessor(field)
+            return super().packing_preprocessor(field)  # default type conversion
     
 
 def get_field_from_field_info(
@@ -320,6 +320,7 @@ class EnumField[ET: enum.Enum](IntegerField):
         super().__init__(size, code, signed)
         self.supported_py_types = (enum.Enum, enum.IntEnum, enum.Flag, enum.IntFlag) # see _type_check() for details
         self.type_annotation: type[enum.Enum]
+        self.literal_values: type[enum.Enum]
     
     @classmethod
     def check_in_range(cls, v: enum.Enum, signed: bool, bits: int, fn: str = "") -> None:
@@ -344,25 +345,57 @@ class EnumField[ET: enum.Enum](IntegerField):
 
     @override
     def _type_check(self) -> None:
-        if (
-            not issubclass(self.type_annotation, self.supported_py_types)
-            or issubclass(self.type_annotation, enum.StrEnum)
-        ): # don't allow string value types
-            raise TypeError(f"'{self.__class__.__name__}' '{self.hierarchy_location_with_self_string}' must resolve to a subclass of {self.supported_py_types} and not '{enum.StrEnum}'. {self.type_annotation} does not meet these requirements.")
+        """
+        Override the PossibleLiteralField implementation to support special enum type checks
+        """
+        try:
+            if (
+                issubclass(self.type_annotation, self.supported_py_types)
+                and not issubclass(self.type_annotation, enum.StrEnum)
+            ):
+                return
+        except TypeError:   # when self.type_annotation is not a class but a literal
+            pass
+        
+        # if not a valid subclass check for literal
+        base_type = get_origin_always(self.type_annotation)
+        if base_type is typing.Literal:
+            self.literal_values = typing.get_args(self.type_annotation)
+            self.literal_type = ... # we don't have literal type int but an enum type that will be determined now
+            for val in self.literal_values:
+                if (
+                    not isinstance(val, self.supported_py_types)
+                    or isinstance(val, enum.StrEnum)
+                ):
+                    raise TypeError(f"Type of Literal value for '{self.__class__.__name__}' '{self.hierarchy_location_with_self_string}' must resolve to a subclass of {self.supported_py_types} and not '{enum.StrEnum}'. '{type(val)}' ({val=}) does not meet these requirements.")
+                if self.literal_type is ...:
+                    self.literal_type = type(val)   # take the type of the first literal value for conversion. All should be the same anyway
+            return
+
+        raise TypeError(f"'{self.__class__.__name__}' '{self.hierarchy_location_with_self_string}' must resolve to a subclass of {self.supported_py_types} and not '{enum.StrEnum}'. {self.type_annotation} does not meet these requirements.")
         
     @override
     def _configure_specialization(self) -> None:
-        # make sure all values are in range already during structure creation
-        for e in self.type_annotation:
-            self.check_in_range(e, self.signed, self.bytes_consumption * 8, self.hierarchy_location_with_self_string)
+        # make sure all possible values are in range already during structure creation
+        if self.literal_values is not None: # If we are a literal type, check the literal values
+            for e in self.literal_values:
+                self.check_in_range(e, self.signed, self.bytes_consumption * 8, self.hierarchy_location_with_self_string)
+        else:   # otherwise check all possible values of the enum type
+            for e in self.type_annotation:
+                self.check_in_range(e, self.signed, self.bytes_consumption * 8, self.hierarchy_location_with_self_string)
 
     @override
     def unpacking_postprocessor(self, data: tuple[int, ...]) -> ET:
-        return self.type_annotation(data[0])   # type_annotation should be the enum
+        # If we are literal, convert literal contained type
+        if self.literal_values is not None:
+            return self.literal_type(data[0])
+        # otherwise type annotation should be the enum
+        else:
+            return self.type_annotation(data[0])
 
     @override
     def packing_preprocessor(self, field: ET) -> tuple[int, ...]:
-        field = self.type_annotation(field) # ensure correct type
+        field, = super().packing_preprocessor(field) # ensure correct type with respect to literals
         return (field.value, )  # get numerical enum value
 
 ET = typing.TypeVar("ET")
@@ -785,7 +818,7 @@ class UnionField(BaseField):
                         # not the correct one, save the error
                         collected_errors.append({
                             "type": "union_tag_invalid",
-                            "loc": self.hierarchy_location_with_self[1:],
+                            "loc": tuple(self.hierarchy_location_with_self[1:]) + (type_option.__name__, ),
                             "input": self.BinaryUnpackedRepresentation(byte_input, dict_input),
                             "ctx": {
                                 "tag": str(input_literal_value),    # convert tag values to string if they are any other literal type

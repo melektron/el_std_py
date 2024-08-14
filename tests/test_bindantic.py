@@ -1668,6 +1668,52 @@ def test_union_int_literal():
     assert reconstruct == inst
 
 
+def test_union_enum_literal():
+    class SubStructA(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        short: Uint8
+        disc: EnumU8[typing.Literal[KnownGoodEnumUnsigned.SECOND]] = KnownGoodEnumUnsigned.SECOND
+    
+    class SubStructB(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        disc: EnumU8[typing.Literal[KnownGoodEnumUnsigned.THIRD]] = KnownGoodEnumUnsigned.THIRD
+        short: Uint16
+
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Uint16
+        substructure: Annotated[typing.Union[SubStructA, SubStructB], pydantic.Discriminator("disc")]
+    
+    assert isinstance(f := TestStructure.struct_fields.get("substructure"), UnionField)
+    assert_general_field_checks(f, typing.Union, "TestStructure.substructure", True, False, "3s", 1, 3)
+
+    ## instantiation with SubStructA
+    inst = TestStructure(
+        some_field=0x56,
+        substructure={"short": 0xAB, "disc": KnownGoodEnumUnsigned.SECOND}  # pydantic doesn't properly support validating numbers to enum literals
+    )
+    #inst = TestStructure.model_validate_json("{\"some_field\":86, \"substructure\": {\"short\": 171, \"disc\": 1}}")
+    binary_rep = inst.struct_dump_bytes()
+    assert binary_rep == b"\x00\x56\xAB\x01\0"
+    
+    # unpack and validate again
+    reconstruct = TestStructure.struct_validate_bytes(binary_rep)
+    assert type(reconstruct.substructure) is SubStructA
+    assert reconstruct.substructure.disc == KnownGoodEnumUnsigned.SECOND
+    assert reconstruct == inst
+
+    # with SubStructB should export other layout
+    inst.substructure = SubStructB(short=0xAB)
+    binary_rep = inst.struct_dump_bytes()
+    assert binary_rep == b"\x00\x56\x02\0\xAB"
+    
+    # unpack and validate again. This should now select SubStructB
+    reconstruct = TestStructure.struct_validate_bytes(binary_rep)   # bindantic does properly support using enum literals as discriminators and converts them
+    assert type(reconstruct.substructure) is SubStructB
+    assert reconstruct.substructure.disc == KnownGoodEnumUnsigned.THIRD
+    assert reconstruct == inst
+
+
 def test_union_chr_literal():
     class SubStructA(BaseStruct):
         model_config = StructConfigDict(byte_order="big-endian")
@@ -1827,6 +1873,100 @@ def test_union_errors_with_discriminator():
     assert e.error_count() == 2
     assert e.errors()[0]["type"] == "union_tag_invalid"
     assert e.errors()[1]["type"] == "union_tag_invalid"
+
+
+def test_union_errors_without_discriminator_enums():
+    class SubStructA(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        short: Uint8
+        disc: EnumU8[typing.Literal[KnownGoodEnumUnsigned.SECOND]] = KnownGoodEnumUnsigned.SECOND
+    
+    class SubStructB(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        disc: EnumU8[typing.Literal[KnownGoodEnumUnsigned.THIRD]] = KnownGoodEnumUnsigned.THIRD
+        short: Uint16
+
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Uint16
+        substructure: typing.Union[SubStructA, SubStructB]
+    
+    # test construction with invalid discriminator
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        inst = TestStructure(
+            some_field=0x56,
+            substructure={"short": 0xAB, "disc": KnownGoodEnumUnsigned.FOURTH}
+        )
+    e = exc_info.value
+    assert e.error_count() == 2
+    assert e.errors()[0]["type"] == "literal_error"
+    assert e.errors()[1]["type"] == "literal_error"
+
+    # test construction with valid discriminator for json still fails because pydantic doesn't support
+    # converting integer to enum in case of literal type
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        inst = TestStructure(
+            some_field=0x56,
+            substructure={"short": 0xAB, "disc": 1}
+        )
+    e = exc_info.value
+    assert e.error_count() == 2
+    assert e.errors()[0]["type"] == "literal_error"
+    assert e.errors()[1]["type"] == "literal_error"
+
+    # test parsing with invalid discriminator
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\x00\x56\x06\0\xAB")
+    e = exc_info.value
+    assert e.error_count() == 2
+    assert e.errors()[0]["type"] == "literal_error" # got 0 for disc which is a valid enum but not the right literal value
+    assert e.errors()[1]["type"] == "struct_packing_error"  # got 6 for disc which is not even a valid enum value
+
+
+def test_union_errors_with_discriminator_enums():
+    class SubStructA(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        short: Uint8
+        disc: EnumU8[typing.Literal[KnownGoodEnumUnsigned.SECOND]] = KnownGoodEnumUnsigned.SECOND
+    
+    class SubStructB(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        disc: EnumU8[typing.Literal[KnownGoodEnumUnsigned.THIRD]] = KnownGoodEnumUnsigned.THIRD
+        short: Uint16
+
+    class TestStructure(BaseStruct):
+        model_config = StructConfigDict(byte_order="big-endian")
+        some_field: Uint16
+        substructure: Annotated[typing.Union[SubStructA, SubStructB], pydantic.Discriminator("disc")]
+    
+    # test construction with invalid discriminator
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        inst = TestStructure(
+            some_field=0x56,
+            substructure={"short": 0xAB, "disc": KnownGoodEnumUnsigned.FOURTH}
+        )
+    e = exc_info.value
+    assert e.error_count() == 1
+    assert e.errors()[0]["type"] == "union_tag_invalid"
+
+    # test construction with valid discriminator for json still fails because pydantic doesn't support
+    # converting integer to enum in case of literal type
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        inst = TestStructure(
+            some_field=0x56,
+            substructure={"short": 0xAB, "disc": 1}
+        )
+    e = exc_info.value
+    assert e.error_count() == 1
+    assert e.errors()[0]["type"] == "union_tag_invalid"
+
+    # test parsing with invalid discriminator
+    with pytest.raises(pydantic.ValidationError) as exc_info:
+        TestStructure.struct_validate_bytes(b"\x00\x56\x06\0\xAB")
+    e = exc_info.value
+    assert e.error_count() == 2
+    assert e.errors()[0]["type"] == "union_tag_invalid" # got 0 for disc which is a valid enum but not the right literal value
+    assert e.errors()[1]["type"] == "struct_packing_error"  # got 6 for disc which is not even a valid enum value
 
 
 def test_union_multiple_disc_values():
