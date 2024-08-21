@@ -1,0 +1,4 @@
+- fixed links to Pydantic in the docs
+- added function to ```terminal``` module to quickly change log levels with error handling and parsing
+- corrected the incorrect example of ```bindantic``` literal enums in the docs
+- added len() support to ```bindantic``` structs which will return their size in bytes

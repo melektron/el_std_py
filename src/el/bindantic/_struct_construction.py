@@ -126,4 +126,16 @@ class StructMetaclass(ModelMetaclass):
 
         return cls
     
+    def __len__(cls: "BaseStruct"):
+        """
+        Size of the struct in bytes, similar to C sizeof()
+        """
+        return cls.__bindantic_byte_consumption__
+
+    def __bool__(self) -> bool:
+        """
+        To prevent __len__ for being called when checking truthiness
+        """
+        return True
+    
 

@@ -2597,3 +2597,21 @@ def test_create_invalid_union():
             model_config = StructConfigDict(byte_order="big-endian")
             some_field: Uint16
             substructure: Annotated[typing.Union[SubStructA, SubStructB], pydantic.Discriminator("disc")]
+
+
+## len() testing ##
+
+def test_len_on_class():
+    class TestStructure(BaseStruct):
+        some_field: Uint16
+        field2: Uint8
+    
+    assert len(TestStructure) == 3
+
+def test_len_inst_class():
+    class TestStructure(BaseStruct):
+        some_field: Uint16
+        field2: Uint8
+        
+    a = TestStructure(some_field=5, field2=7)
+    assert len(a) == 3

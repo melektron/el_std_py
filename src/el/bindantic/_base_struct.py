@@ -73,6 +73,20 @@ class BaseStruct(pydantic.BaseModel, metaclass=StructMetaclass):
     def __init__(self, /, **data: typing.Any) -> None:
         super().__init__(**data)
     
+    def __len__(self):
+        """
+        Size of the struct in bytes, similar to C sizeof().
+        This is equivalent to calling on the struct
+        class itself.
+        """
+        return self.__bindantic_byte_consumption__
+    
+    def __bool__(self) -> bool:
+        """
+        To prevent __len__ for being called when checking truthiness
+        """
+        return True
+    
     def struct_dump_elements(self) -> tuple[PyStructBaseTypes, ...]:
         """
         Generates a tuple representing the structure, containing the smallest
