@@ -375,14 +375,14 @@ class MyE(enum.Enum):
     THIRD = 3
 
 class MyStructure(bin.BaseStructure):
-    field1: bin.EnumU8[MyE.SECOND, MyE.THIRD] = MyE.SECOND
-    field2: bin.EnumU16[MyE.SECOND, MyE.THIRD] = MyE.SECOND
-    field3: bin.EnumU32[MyE.SECOND, MyE.THIRD] = MyE.SECOND
-    field4: bin.EnumU64[MyE.SECOND, MyE.THIRD] = MyE.SECOND
-    field5: bin.Enum8[MyE.SECOND, MyE.THIRD] = MyE.SECOND
-    field6: bin.Enum16[MyE.SECOND, MyE.THIRD] = MyE.SECOND
-    field7: bin.Enum32[MyE.SECOND, MyE.THIRD] = MyE.SECOND
-    field8: bin.Enum64[MyE.SECOND, MyE.THIRD] = MyE.SECOND
+    field1: bin.EnumU8[Literal[MyE.SECOND, MyE.THIRD]] = MyE.SECOND
+    field2: bin.EnumU16[Literal[MyE.SECOND, MyE.THIRD]] = MyE.SECOND
+    field3: bin.EnumU32[Literal[MyE.SECOND, MyE.THIRD]] = MyE.SECOND
+    field4: bin.EnumU64[Literal[MyE.SECOND, MyE.THIRD]] = MyE.SECOND
+    field5: bin.Enum8[Literal[MyE.SECOND, MyE.THIRD]] = MyE.SECOND
+    field6: bin.Enum16[Literal[MyE.SECOND, MyE.THIRD]] = MyE.SECOND
+    field7: bin.Enum32[Literal[MyE.SECOND, MyE.THIRD]] = MyE.SECOND
+    field8: bin.Enum64[Literal[MyE.SECOND, MyE.THIRD]] = MyE.SECOND
     field1: bin.LitU8[Literal[4, 5]] = 5
     field2: bin.LitU16[Literal[4, 5]] = 5
     field3: bin.LitU32[Literal[4, 5]] = 5
