@@ -12,5 +12,11 @@ More exception types that are either used by el or are
 generally useful
 """
 
-class SetupError(BaseException):
+class SetupError(Exception):
+    pass
+
+class IncompleteReadError(Exception):
+    pass
+
+class InvalidPathError(Exception):
     pass

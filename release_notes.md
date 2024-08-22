@@ -2,3 +2,8 @@
 - added function to ```terminal``` module to quickly change log levels with error handling and parsing
 - corrected the incorrect example of ```bindantic``` literal enums in the docs
 - added len() support to ```bindantic``` structs which will return their size in bytes
+- added exceptions:
+  - IncompleteReadError
+  - InvalidPathError
+- added simple coloring support for terminal print() method
+- add ReassignGuard to ```typing_tools``` which is a descriptor preventing re-assignment of a previously assigned attribute. This is for example useful to prevent accidental re-assignment of observables.

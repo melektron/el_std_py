@@ -21,16 +21,21 @@ import logging
 import typing
 from el.errors import SetupError
 
+BLUE    = '\033[94m'
+GREEN   = '\033[92m'
+YELLOW  = '\033[93m'
+RED     = '\033[91m'
+MAGENTA = '\033[95m'
+GREY    = '\033[90m'
+RESET   = '\033[0m'  # Reset color to default
 
 LEVEL_COLORS = {
-    'DEBUG': '\033[94m',    # Blue
-    'INFO': '\033[92m',     # Green
-    'WARNING': '\033[93m',  # Yellow
-    'ERROR': '\033[91m',    # Red
-    'CRITICAL': '\033[95m'  # Magenta
+    'DEBUG': BLUE,
+    'INFO': GREEN,
+    'WARNING': YELLOW,
+    'ERROR': RED,
+    'CRITICAL': MAGENTA
 }
-RESET = '\033[0m'  # Reset color
-GREY = '\033[90m'  # Grey for logger name and line number
 
 type LogLevel = int | typing.Literal[
     "CRITICAL",
@@ -135,12 +140,18 @@ class TerminalController(logging.Handler):
     def _reprint_command_line(self) -> None:
         sys.stdout.write(self._prompt + self._command_buffer)
     
-    def print(self, log: str | typing.Any) -> None:
+    def print(self, log: str | typing.Any, color: str | None = None) -> None:
         """
-        normal print function that can be used to print lines to the terminal
+        normal print function that can be used to print lines to the terminal.
+        If a color is specified (string with the appropriate ANSI escape sequence)
+        the color string is prepended and a color reset sequence is automatically prepended
+        to the printed message
         """
         self._clear_line()
-        sys.stdout.write(str(log))
+        if color is not None:
+            sys.stdout.write(color + str(log) + RESET)
+        else:
+            sys.stdout.write(str(log))
         sys.stdout.write("\n\r")
         self._reprint_command_line()
         sys.stdout.flush()
