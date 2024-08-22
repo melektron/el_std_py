@@ -7,3 +7,4 @@
   - InvalidPathError
 - added simple coloring support for terminal print() method
 - add ReassignGuard to ```typing_tools``` which is a descriptor preventing re-assignment of a previously assigned attribute. This is for example useful to prevent accidental re-assignment of observables.
+- fixed bug where variable wasn't declared global in ```terminal``` module

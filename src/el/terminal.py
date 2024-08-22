@@ -217,6 +217,7 @@ def setup_simple_terminal(level: LogLevel = logging.INFO) -> TerminalController:
 
     Returns: terminal controller
     """
+    global _TERMINAL
     log = logging.getLogger()
     log.setLevel(level)
 
