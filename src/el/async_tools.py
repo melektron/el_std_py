@@ -23,17 +23,30 @@ P = ParamSpec('P')
 
 # https://stackoverflow.com/a/71031698
 # https://stackoverflow.com/a/71956673
-def synchronize(coro: Callable[P, Coroutine[Any, Any, Any]]) -> Callable[P, None]:
+def synchronize(coro_fn: Callable[P, Coroutine[Any, Any, Any]]) -> Callable[P, None]:
     """
     Decorator that converts an async coroutine into a function that can be
     called synchronously ans will run in the background without needing
     to worry about task references.
     """
-    @functools.wraps(coro)
+    @functools.wraps(coro_fn)
     def inner(*args, **kwargs):
-        task = asyncio.create_task(coro(*args, **kwargs))
+        task = asyncio.create_task(coro_fn(*args, **kwargs))
         _running_bg_tasks.add(task) # keep reference as long as it runs
         task.add_done_callback(lambda t: _running_bg_tasks.remove(t))
     
     return inner
+
+
+def create_bg_task[T_R](coro: Coroutine[Any, Any, T_R]) -> asyncio.Task[T_R]:
+    """
+    Creates an asyncio task that is kept alive by a reference
+    in an internal set, even if the returned task object
+    is not stored anywhere else. This is usefull if you just want
+    to start some process without wanting to keep track of it.
+    """
+    task = asyncio.create_task(coro)
+    _running_bg_tasks.add(task)
+    task.add_done_callback(lambda t: _running_bg_tasks.remove(t))
+    return task
 

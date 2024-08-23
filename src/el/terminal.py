@@ -13,13 +13,22 @@ interactive CLI while using logging.
 """
 
 import sys
-import tty
 import atexit
-import termios
+if sys.platform != "win32":
+    import tty
+    import termios
+else:
+    import ctypes
+    import ctypes.wintypes
+    import queue
+    import threading
+    import msvcrt
+    import os
 import asyncio
 import logging
 import typing
 from el.errors import SetupError
+
 
 BLUE    = '\033[94m'
 GREEN   = '\033[92m'
@@ -48,6 +57,19 @@ type LogLevel = int | typing.Literal[
     "NOTSET",
 ]
 
+ENABLE_ECHO_INPUT = 0x0004
+ENABLE_LINE_INPUT = 0x0002
+ENABLE_PROCESSED_INPUT = 0x0001
+ENABLE_VIRTUAL_TERMINAL_INPUT = 0x0200
+
+def set_cbreak_mode_windows():
+    h_stdin = ctypes.windll.kernel32.GetStdHandle(-10)
+    mode = ctypes.wintypes.DWORD()
+    ctypes.windll.kernel32.GetConsoleMode(h_stdin, ctypes.byref(mode))
+    new_mode = mode.value & (~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT) | ENABLE_VIRTUAL_TERMINAL_INPUT)
+    print(f"{bin(mode.value)=}, {bin(new_mode)=}")
+    ctypes.windll.kernel32.SetConsoleMode(h_stdin, new_mode)
+
 
 class TerminalController(logging.Handler):
     """
@@ -62,11 +84,19 @@ class TerminalController(logging.Handler):
         """
 
         super().__init__()
-        # put terminal into raw mode
+
         self._fd = sys.stdin.fileno()
-        self._old_settings = termios.tcgetattr(self._fd)
-        # enable direct control but still allows Ctrl+C and similar to work as expected
-        tty.setcbreak(self._fd)
+
+        if sys.platform != "win32":
+            # put terminal into raw mode
+            self._old_settings = termios.tcgetattr(self._fd)
+            # enable direct control but still allows Ctrl+C and similar to work as expected
+            tty.setcbreak(self._fd)
+        else:
+            #msvcrt.setmode(self._fd, os.O_BINARY)
+            set_cbreak_mode_windows()
+            self._win_input_queue = queue.Queue()    # queue to transfer input from thread
+
         # make sure the terminal is restored, even when crashing
         atexit.register(self._restore_settings)
         
@@ -85,16 +115,43 @@ class TerminalController(logging.Handler):
         This is not in __init__ to allow constructing a terminal object globally before 
         an asyncio event loop has been started.
         """
-        loop = asyncio.get_event_loop()
-        self._reader = asyncio.StreamReader()
-        protocol = asyncio.StreamReaderProtocol(self._reader)
-        await loop.connect_read_pipe(lambda: protocol, sys.stdin)
-
+        if sys.platform != "win32":
+            loop = asyncio.get_event_loop()
+            self._reader = asyncio.StreamReader()
+            protocol = asyncio.StreamReaderProtocol(self._reader)
+            await loop.connect_read_pipe(lambda: protocol, sys.stdin)
+        else:
+            self._win_read_thread = threading.Thread(target=self._windows_read_thread, daemon=True)
+            self._win_read_thread.start()
+    
+    if sys.platform == "win32":
+        def _windows_read_thread(self) -> None:
+            while not self._exited:
+                # getch() does not support input that is redirected. However swithcing to using stdin has weird
+                # behaviour with the return key. For this reason, we are using getch() for now
+                #char = sys.stdin.read(1).encode()
+                char = msvcrt.getch()
+                self._win_input_queue.put(char)
+        
+    async def portable_read_one(self) -> bytes:
+        if sys.platform != "win32":
+            return await self._reader.readexactly(1)
+        else:
+            while True:
+                try:
+                    return self._win_input_queue.get_nowait()
+                except queue.Empty:
+                    pass
+                await asyncio.sleep(0.03) # check every 30ms for relatively responsive input
+    
     def _restore_settings(self):
         """
         restores the terminal configuration from cbreak back to what it was before.
         """
-        termios.tcsetattr(self._fd, termios.TCSADRAIN, self._old_settings)
+        if sys.platform != "win32":
+            termios.tcsetattr(self._fd, termios.TCSADRAIN, self._old_settings)
+        else:
+           ...
     
     async def next_command(self) -> str | None:
         """
@@ -106,11 +163,11 @@ class TerminalController(logging.Handler):
             c: bytes = ...
             try:
                 async with asyncio.timeout(.5):
-                    c = await self._reader.readexactly(1)
+                    c = await self.portable_read_one()
             except TimeoutError:
                 continue
 
-            if c == b'\x7f':  # Backspace
+            if c == b'\x7f' or (sys.platform == "win32" and c == b'\x08'):  # Backspace
                 if len(self._command_buffer) > 0:
                     self._command_buffer = self._command_buffer[:-1]
                     self._clear_line()
