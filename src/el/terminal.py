@@ -24,6 +24,7 @@ else:
     import threading
     import msvcrt
     import os
+    import colorama
 import asyncio
 import logging
 import typing
@@ -66,8 +67,7 @@ def set_cbreak_mode_windows():
     h_stdin = ctypes.windll.kernel32.GetStdHandle(-10)
     mode = ctypes.wintypes.DWORD()
     ctypes.windll.kernel32.GetConsoleMode(h_stdin, ctypes.byref(mode))
-    new_mode = mode.value & (~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT) | ENABLE_VIRTUAL_TERMINAL_INPUT)
-    print(f"{bin(mode.value)=}, {bin(new_mode)=}")
+    new_mode = mode.value & (~(ENABLE_ECHO_INPUT | ENABLE_LINE_INPUT))
     ctypes.windll.kernel32.SetConsoleMode(h_stdin, new_mode)
 
 
@@ -95,7 +95,8 @@ class TerminalController(logging.Handler):
         else:
             #msvcrt.setmode(self._fd, os.O_BINARY)
             set_cbreak_mode_windows()
-            self._win_input_queue = queue.Queue()    # queue to transfer input from thread
+            colorama.just_fix_windows_console()     # enables coloring on windows in every situation
+            self._win_input_queue = queue.Queue()   # queue to transfer input from thread
 
         # make sure the terminal is restored, even when crashing
         atexit.register(self._restore_settings)
