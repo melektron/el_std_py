@@ -16,3 +16,5 @@ from ._colors import (
     tk_to_rgb8,
     rgb_to_hex_str,
 )
+from ._tooltip import add_tooltip
+from ._dynamic_config import apply_to_config

@@ -12,7 +12,7 @@ Utility functions to access various theme dependent colors and convert
 them according to the active appearance mode
 """
 
-from typing import Literal, Iterable
+from typing import Literal, Sequence
 
 from ._deps import *
 from el.observable import Observable
@@ -21,18 +21,30 @@ from el.observable import Observable
 Color = str | tuple[str, str]
 MaybeObservableColor = Color | Observable[Color]
 
-def homogenize_color_types(color: str | tuple[str] | bytes | bytearray | Iterable[str]) -> Color:
+
+def homogenize_color_types(
+    color: str | tuple[str] | bytes | bytearray | Sequence[str],
+) -> Color:
     """
-    Ensures that a color value is either a tuple or a string, not any other iterable or 
+    Ensures that a color value is either a tuple or a string, not any other iterable or
     string variant.
     """
-    if isinstance(color, (str, tuple)):
+    if isinstance(color, str):
         return color
     elif isinstance(color, (bytes, bytearray)):
         return color.decode()
-    elif isinstance(color, Iterable):
+    elif (
+        isinstance(color, Sequence)
+        and len(color) == 2
+        and isinstance(color[0], str)
+        and isinstance(color[1], str)
+    ):
         return tuple(color)
-            
+    else:
+        raise ValueError(
+            f"Color {color} of type {type(color)} cannot be homogenized to 'str' or 'tuple[str, str]'"
+        )
+
 def apply_apm(color: Color, mode: Literal["Light", "Dark"] | None = None) -> str:
     """
     Takes in a CTk color (= single color string or a pair of color strings)
