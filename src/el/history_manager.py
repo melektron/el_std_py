@@ -53,10 +53,6 @@ if _USE_PYDANTIC:
         copy functionality
         """
 
-        def __init__(self, initial_state: MT):
-            super().__init__()
-            self.take_snapshot(initial_state)
-
         @override
         def take_snapshot(self, state: MT) -> None:
             new_snapshot = state.model_copy(deep=True)
@@ -65,6 +61,7 @@ if _USE_PYDANTIC:
             # -> redo must be cleared
             self._redo_items.clear()
 
+        @override
         def undo(self) -> MT | None:
             if len(self._undo_items) == 0:
                 return None
@@ -73,7 +70,8 @@ if _USE_PYDANTIC:
                 self._redo_items.push(snapshot)
                 return snapshot
 
-        def undo(self) -> MT | None:
+        @override
+        def redo(self) -> MT | None:
             if len(self._redo_items) == 0:
                 return None
             else:
