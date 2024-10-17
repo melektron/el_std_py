@@ -35,7 +35,6 @@ ConfigOptionName = Literal[
     "command",
     "compound",
     "anchor",
-
     # tk.Frame
     "background",
     "bd",
@@ -52,7 +51,6 @@ ConfigOptionName = Literal[
     "relief",
     "takefocus",
     "width",
-    
     # ctk.CTkLabel
     "corner_radius",
     "fg_color",
@@ -67,7 +65,9 @@ ConfigOptionName = Literal[
 ]
 
 
-def apply_to_config[PT](widget: tk.Widget, config_name: ConfigOptionName) -> Callable[[PT], PT]:
+def apply_to_config[
+    PT
+](widget: tk.Widget, config_name: ConfigOptionName) -> Callable[[PT], PT]:
     """
     Creates a function that applies observable values toa tk/ctk config options dynamically.
     """
@@ -75,5 +75,17 @@ def apply_to_config[PT](widget: tk.Widget, config_name: ConfigOptionName) -> Cal
     def set_opt(data: PT) -> PT:
         widget.configure(**{config_name: data})
         return data
-    
+
     return set_opt
+
+
+def apply_to_tk_var[PT](variable: tk.Variable) -> Callable[[PT], PT]:
+    """
+    Creates a function that applies observable values to tkinter variables dynamically.
+    """
+
+    def set_var(data: PT) -> PT:
+        variable.set(data)
+        return data
+
+    return set_var
