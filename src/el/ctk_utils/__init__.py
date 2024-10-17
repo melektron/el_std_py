@@ -17,4 +17,4 @@ from ._colors import (
     rgb_to_hex_str,
 )
 from ._tooltip import add_tooltip
-from ._dynamic_config import apply_to_config
+from ._dynamic_config import apply_to_config, apply_to_tk_var
