@@ -23,7 +23,7 @@ _id_counter = 0
 P = ParamSpec("P")
 
 class CallbackManager(Generic[P]):
-    def __init__(self, weak_by_default: bool = False):
+    def __init__(self, weak_by_default: bool = True):
         self._weak_by_default = weak_by_default
         self._callbacks: dict[CallbackID, Callable[P, None] | ReferenceType[Callable[P, None]]] = {}
     

@@ -18,3 +18,4 @@ from ._colors import (
 )
 from ._tooltip import add_tooltip
 from ._dynamic_config import apply_to_config, apply_to_tk_var
+from ._scaling import apply_widget_scaling

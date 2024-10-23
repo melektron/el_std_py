@@ -43,6 +43,11 @@ class HistoryManager[T](abc.ABC):
     @abc.abstractmethod
     def redo(self) -> T | None:
         """Pops one item from the redo queue if possible. Returns None if none are available."""
+    
+    def clear(self) -> None:
+        """Clears all history. This removes all undo and redo entries."""
+        self._undo_items.clear()
+        self._redo_items.clear()
 
 
 if _USE_PYDANTIC:
