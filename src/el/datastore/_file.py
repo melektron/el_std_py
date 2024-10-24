@@ -36,6 +36,7 @@ def set_datastore_base_path(path: pathlib.Path) -> None:
     are relative to. This should be the folder in which datastore objects
     should be saved.
     """
+    global _global_datastore_base_path
     _global_datastore_base_path = path
 
 
