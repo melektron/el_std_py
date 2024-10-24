@@ -12,5 +12,5 @@ permanent data storage manager for
 the vc0 server
 """
 
-from ._file import File
+from ._file import File, set_datastore_base_path
 from ._specialized import specialized_file
