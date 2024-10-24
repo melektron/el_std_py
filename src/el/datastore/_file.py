@@ -29,6 +29,15 @@ STORAGE_CONFIG = {"indent": 4}
 # Model Type can be any pydantic data model
 MT = typing.TypeVar("MT", bound=pydantic.BaseModel)
 
+_global_datastore_base_path = pathlib.Path("data")
+def set_datastore_base_path(path: pathlib.Path) -> None:
+    """
+    Configures the base filesystem path that datastore objects paths
+    are relative to. This should be the folder in which datastore objects
+    should be saved.
+    """
+    _global_datastore_base_path = path
+
 
 class File(typing.Generic[MT]):
     # Dict of all currently accessed files. If multiple file instances with the same path are created,
@@ -212,7 +221,7 @@ class File(typing.Generic[MT]):
         path = path.copy()
         path[-1] += ".ext"
 
-        storage_path = pathlib.Path("data")
+        storage_path = _global_datastore_base_path
         for el in path:
             storage_path = storage_path / cls._sanitize_path_element(el)
         return storage_path.with_suffix(".json")
