@@ -66,7 +66,7 @@ class CTkToolTip(ctk.CTkToplevel):
 
         self.resizable(width=True, height=True)
         # Make the window background transparent (if possible)
-        self.configure(background=self._transparent_color)
+        super().configure(background=self._transparent_color)
 
         # StringVar instance for msg string
         self.message_var = ctk.StringVar()
@@ -239,7 +239,5 @@ class CTkToolTip(ctk.CTkToplevel):
         if bg_color is not None:
             self._frame.configure(fg_color=bg_color)
             self._bg_color = bg_color
-
         if message is not None:
             self.message_var.set(message)
-        
