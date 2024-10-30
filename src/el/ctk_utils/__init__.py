@@ -9,6 +9,8 @@ CTk applications.
 """
 
 from ._colors import (
+    Color,
+    MaybeObservableColor,
     homogenize_color_types,
     apply_apm,
     apply_apm_observed,
