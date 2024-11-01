@@ -29,7 +29,8 @@ if __name__ == "__main__":
     listbox = CTkListbox[uuid.UUID](
         master=window,
         width=200,
-        height=400
+        height=400,
+        multiselect_mode="modifier"
     )
     listbox.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
