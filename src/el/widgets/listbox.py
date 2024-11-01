@@ -84,6 +84,7 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
         Depending on the 'multiselect_mode' parameter, the user can either select only a single option ("disabled"), can select multiple options by toggling them when clicking ("toggle") or combination of these options by using the Shift (range-select) and Ctrl (toggle-select) modifier keys. Pressing escape always clears the selection.
 
         A set of currently selected options can be obtained using the observable 'selected_indices' and 'selected_ids' properties.
+        Developers can also register a callback using the 'on_option_clicked' callback manager to be notified when the user clicks on an option (if it is not disabled).
 
         Options can programmatically be selected or deselected using the set_selected_by_id() or set_selected_by_index() methods. The the by_id version is to be used if an option is to be uniquely identified, the index version should only ever be used if you want to select an option at a specific position (maybe some UI feature) and don't care about what option that is.
 
@@ -283,11 +284,15 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
         )
 
     def get_options(self) -> list[OptionEntry]:
-        """
-        Generates a list of all current options. This list contains
-        a copy of the option elements, so mutating it will not
-        affect the UI until calling set_options() with the
-        modified list.
+        """Generates a list of all current options. 
+
+        Returns
+        -------
+        list[OptionEntry]
+            List of all current options. This list contains
+            a copy of the option elements, so mutating it will not
+            affect the UI until calling set_options() with the
+            modified list.
         """
         return [
             self._create_public_option_object(option)
@@ -295,11 +300,20 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
         ]
 
     def set_options(self, new_options: list[OptionEntry[IT]]) -> None:
-        """
-        Sets the options of the listbox, replacing the old ones.
+        """Sets the options of the listbox, replacing the old ones.
         This granularly walks through the existing options, comparing differences 
         and only updating tk elements where necessary in an effort to keep slow tk 
         calls to a minimum.
+
+        Options are placed in the listbox in the provided order. Selection
+        state is retained for objects with the same ID, even if their position has changed.
+        Selected objects that have been removed from the list will also be removed from the
+        selection set, notifying all observers.
+
+        Parameters
+        ----------
+        new_options : list[OptionEntry[IT]]
+            List of options to show in the listbox
         """
 
         created_options: list[_InternalOptionEntry[IT]] = []
