@@ -43,6 +43,15 @@ class Observable(typing.Generic[T]):
         for observer in self._observers:
             observer(self._value)
     
+    def force_notify(self):
+        """
+        Force fully cause a value update to be propagated
+        to all observers without checking for value
+        changes. This can be useful to send updates when externally
+        mutating the value without the Observable's knowledge.
+        """
+        self._notify()
+    
     @property
     def value(self) -> T:
         """

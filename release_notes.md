@@ -11,7 +11,11 @@
 - added ```terminal``` support for windows (for now this does not support redirected input)
 - added create_bg_task() to ```async_tools```
 - added ```ctk_utils``` module to integrate tk/ctk with observables, and provide other useful utilities
+- added ```widgets``` module providing some additional customtkinter widgets
+  - CTkListBox
+  - CTkTooltip
 - added ```history_manager``` module
 - added ```callback_manager``` module
 - added ```numbers``` module
   - linear mapping function
+- added ```force_notify()``` method to ```observable.Observable```

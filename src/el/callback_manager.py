@@ -81,4 +81,13 @@ class CallbackManager(Generic[P]):
                     actual_cb(*args, **kwargs)
             else:
                 cb(*args, **kwargs)
+    
+    @property
+    def callback_count(self) -> int:
+        """ Number of currently registered callbacks """
+        return len(self._callbacks)
 
+    @property
+    def has_callbacks(self) -> int:
+        """ Whether there are any registered callbacks """
+        return len(self._callbacks) > 0

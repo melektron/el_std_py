@@ -5,14 +5,23 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python Debugger: tests/mtest_listbox.py",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/tests/mtest_listbox.py",
+            "console": "integratedTerminal",
+            "justMyCode": false
+        },
+        {
             "name": "Python: Debug Tests",
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
-            "purpose": ["debug-test"],
+            "purpose": [
+                "debug-test"
+            ],
             "console": "integratedTerminal",
             "justMyCode": false
         }
-          
     ]
 }
