@@ -18,7 +18,7 @@ widget.
 
 
 import sys
-from typing import Any, Optional, Union, Literal, Hashable, Iterable
+from typing import Any, Optional, Union, Literal, Hashable, Iterable, override
 from itertools import zip_longest
 from dataclasses import dataclass
 # import cProfile
@@ -141,8 +141,6 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
 
         super().__init__(
             master=master,
-            width=width,
-            height=height,
             corner_radius=corner_radius,
             border_width=border_width,
             bg_color=bg_color,
@@ -152,6 +150,12 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
             scrollbar_button_color=scrollbar_button_color,
             scrollbar_button_hover_color=scrollbar_button_hover_color,
         )
+        # prevent the dimensions being defined by the inner canvas
+        self._parent_frame.grid_propagate(False)
+        # set the dimensions here which will configure them on the parent frame, 
+        # as the constructor of ScrollableFrame sets the size of the internal
+        # canvas which we don't want
+        self._set_dimensions(width=width, height=height)
         self.grid_columnconfigure(0, weight=1)
 
         # fix mouse wheel on Linux
@@ -270,6 +274,30 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
             # update selection sets
             self.selected_indices.value = set()
             self.selected_ids.value = set()
+    
+    @override
+    def _set_scaling(self, new_widget_scaling, new_window_scaling):
+        # we skip the CTkScrollableFrame parent, as we don't like it's behavior
+        CTkScalingBaseClass._set_scaling(new_widget_scaling, new_window_scaling)
+        # changed this to the frame instead of canvas, as we want to fix the outer frame size.
+        # we also can skip applying the scaling here, as the _parent_frame is already a ctk widget
+        self._parent_frame.configure(
+            width=self._desired_width,
+            height=self._desired_height
+        )
+
+    @override
+    def _set_dimensions(self, width=None, height=None):
+        if width is not None:
+            self._desired_width = width
+        if height is not None:
+            self._desired_height = height
+        # changed this to the frame instead of canvas, as we want to fix the outer frame size.
+        # we also can skip applying the scaling here, as the _parent_frame is already a ctk widget
+        self._parent_frame.configure(
+            width=self._desired_width,
+            height=self._desired_height
+        )
 
     def _create_public_option_object(self, option: _InternalOptionEntry) -> OptionEntry:
         """
