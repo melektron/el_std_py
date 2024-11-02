@@ -466,7 +466,6 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
         """
 
         for i in indices:
-            print(i)
             if i >= len(self._internal_options):
                 raise IndexError(f"No option with index '{i}' exists in this listbox")
 
