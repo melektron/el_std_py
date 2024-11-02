@@ -47,7 +47,7 @@ class CallbackManager(Generic[P]):
             self._callbacks[cb_id] = cb
         else:
             def finish(_) -> None:
-                self._callbacks.pop[cb_id]
+                del self._callbacks[cb_id]
 
             if inspect.ismethod(cb):
                 self._callbacks[cb_id] = WeakMethod(cb, finish)
@@ -72,15 +72,18 @@ class CallbackManager(Generic[P]):
         Calls all the registered callback functions. If lost weak references are found they
         are removed.
         """
+        to_be_removed: list[CallbackID] = []
         for id, cb in self._callbacks.items():
             if isinstance(cb, ReferenceType):
                 actual_cb = cb()
                 if actual_cb is None:
-                    del self._callbacks[id]
+                    to_be_removed.append(id)
                 else:
                     actual_cb(*args, **kwargs)
             else:
                 cb(*args, **kwargs)
+        for id in to_be_removed:
+            del self._callbacks[id]
     
     @property
     def callback_count(self) -> int:
