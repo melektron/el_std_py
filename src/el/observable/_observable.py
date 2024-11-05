@@ -30,9 +30,9 @@ class Observable(typing.Generic[T]):
         self._value = initial_value
         self._observers = []
 
-    def _receive(self, v):
+    def receive(self, v):
         """
-        same as the value setter, just for internal use in chaining
+        same as the value setter, just for internal use in chaining and for setting in lambdas 
         """
         self.value = v
 
@@ -139,7 +139,7 @@ class Observable(typing.Generic[T]):
             raise TypeError(f"Observable cannot be chained to object of type '{type(observable)}'. It should be an 'Observable'")
         if observable is self:
             raise RecursionError("Observable cannot observe itself")
-        observable >> self._receive
+        observable >> self.receive
 
 
 ComposedObserverFunction = typing.Callable[[tuple[any]], None]
