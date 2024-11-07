@@ -477,7 +477,7 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
     def set_selected_by_id(
         self,
         selected: bool,
-        ids: Iterable[int],
+        ids: Iterable[IT],
         *,
         keep_last: bool = True,
         notify: bool = True,
@@ -489,7 +489,7 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
         ----------
         selected : bool
             Whether to select or deselect the options.
-        ids : Iterable[int]
+        ids : Iterable[IT]
             ID or IDs of the options to modify
         keep_last : bool, optional
             Whether to keep the last range-select element or override it with the newly
