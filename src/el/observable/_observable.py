@@ -30,7 +30,7 @@ class Observable(typing.Generic[T]):
         self._value = initial_value
         self._observers = []
 
-    def receive(self, v):
+    def receive(self, v: T):
         """
         same as the value setter, just for internal use in chaining and for setting in lambdas 
         """

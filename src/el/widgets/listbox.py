@@ -29,7 +29,7 @@ from el.callback_manager import CallbackManager
 from el.observable import Observable
 
 @dataclass
-class OptionEntry[IT]:
+class OptionEntry[IT: Hashable]:
     id: IT
     label: str
     disabled: bool = False
