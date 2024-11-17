@@ -19,3 +19,7 @@
 - added ```numbers``` module
   - linear mapping function
 - added ```force_notify()``` method to ```observable.Observable```
+- added ```analysis``` module
+  - ```show_execution_time``` decorator
+- new functions in ```async_tools```
+  - ```async_mpc_pipe_recv``` Asynchronous multiprocessing pipe reader

@@ -15,6 +15,7 @@ import asyncio
 import functools
 from typing import Callable, Any, Coroutine
 from typing_extensions import ParamSpec
+import multiprocessing.connection as mpc
 
 
 _running_bg_tasks = set()
@@ -50,3 +51,39 @@ def create_bg_task[T_R](coro: Coroutine[Any, Any, T_R]) -> asyncio.Task[T_R]:
     task.add_done_callback(lambda t: _running_bg_tasks.remove(t))
     return task
 
+
+async def async_mpc_pipe_recv[RT](reader: "mpc.Connection[Any, RT]", timeout: float | None = None) -> RT:
+    """
+    Asynchronously ready from a multiprocessing.Pipe Connection object,
+    asynchronously pausing the task until data is available to read.
+
+    Inspiration: https://stackoverflow.com/a/62098165
+    
+    :returns: The received data
+
+    Parameters
+    ----------
+    reader : multiprocessing.connection.Connection
+        readable connection object to attempt to read data from
+    timeout : float | None, optional
+        Timeout when waiting for data, by default None. None means no timeout.
+
+    Returns
+    -------
+    Any
+        Received data
+
+    Raises
+    -------
+    TimeoutError
+        Timeout waiting for received data
+    """
+    data_available = asyncio.Event()
+    asyncio.get_event_loop().add_reader(reader.fileno(), data_available.set)
+
+    async with asyncio.timeout(timeout):
+        while not reader.poll():
+            await data_available.wait()
+            data_available.clear()
+
+    return reader.recv()
