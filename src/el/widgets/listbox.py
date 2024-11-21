@@ -217,7 +217,7 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
 
         # callback whenever an entry is clicked.
         # parameters: index of the element in the listbox and option entry data
-        self.on_option_clicked = CallbackManager[int, OptionEntry]()
+        self.on_option_clicked = CallbackManager[int, OptionEntry[IT]]()
         # observable set of all selected indices (max 1 if multiselect is disabled)
         self.selected_indices = Observable[set[int]]([])
         # observable set of all selected IDs (max 1 if multiselect is disabled)
@@ -501,8 +501,10 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
         
         Raises
         ------
+        KeyError
+            If an invalid ID is passed to this function
         IndexError
-            If an out-of-range option index is passed to this function
+            If an out-of-range option index is found internally (should never happen)
         """
         try:
             self.set_selected_by_index(
