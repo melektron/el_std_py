@@ -11,6 +11,7 @@ LICENSE file in the root directory of this source tree.
 Utilities for working with asyncio (I wish some of these were in stdlib)
 """
 
+import sys
 import asyncio
 import functools
 from typing import Callable, Any, Coroutine
@@ -53,6 +54,9 @@ def create_bg_task[T_R](coro: Coroutine[Any, Any, T_R]) -> asyncio.Task[T_R]:
 
 
 async def async_mpc_pipe_recv[RT](reader: "mpc.Connection[Any, RT]", timeout: float | None = None) -> RT:
+    """async with asyncio.timeout(timeout):
+        await asyncio.sleep(10)
+        return """
     """
     Asynchronously ready from a multiprocessing.Pipe Connection object,
     asynchronously pausing the task until data is available to read.
@@ -77,13 +81,22 @@ async def async_mpc_pipe_recv[RT](reader: "mpc.Connection[Any, RT]", timeout: fl
     -------
     TimeoutError
         Timeout waiting for received data
-    """
-    data_available = asyncio.Event()
-    asyncio.get_event_loop().add_reader(reader.fileno(), data_available.set)
+    """    
+    if sys.platform == 'win32':
+        async with asyncio.timeout(timeout):
+            while not reader.poll():
+                await  asyncio.sleep(0.01)
 
-    async with asyncio.timeout(timeout):
-        while not reader.poll():
-            await data_available.wait()
-            data_available.clear()
+        return reader.recv()
 
-    return reader.recv()
+    else:
+        data_available = asyncio.Event()
+        asyncio.get_event_loop().add_reader(reader.fileno(), data_available.set)
+
+        async with asyncio.timeout(timeout):
+            while not reader.poll():
+                await data_available.wait()
+                data_available.clear()
+
+        return reader.recv()
+    
