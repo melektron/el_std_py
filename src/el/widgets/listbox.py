@@ -253,7 +253,7 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
     def _check_if_master_is_scroll_frame(self, widget: tk.Widget):
         if widget == self._parent_frame:
             return True
-        elif widget.master is not None:
+        elif hasattr(widget, "master") and widget.master is not None:
             return self._check_if_master_is_scroll_frame(widget.master)
         else:
             return False
