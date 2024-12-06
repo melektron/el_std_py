@@ -74,6 +74,13 @@ class Observable(typing.Generic[T]):
             self._value = v
             self._notify()
 
+    def observe(self, observer: ObserverFunction[T, R]) -> "Observable[R]":
+        """
+        Adds a new observer function to the observable.
+        This acts exactly the same as the ">>" operator and is intended
+        for cases where the usage of such operators is not possible or
+        would be confusing.
+        """
     def __rshift__(self, observer: ObserverFunction[T, R]) -> "Observable[R]":
         """
         Adds a new observer function to the observable.

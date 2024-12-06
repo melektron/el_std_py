@@ -23,3 +23,5 @@
   - ```show_execution_time``` decorator
 - new functions in ```async_tools```
   - ```async_mpc_pipe_recv``` Asynchronous multiprocessing pipe reader
+- new functions for observables:
+  - ```Observable.observe()``` for cases where the ```>>``` Operator is confusing or doesn't work

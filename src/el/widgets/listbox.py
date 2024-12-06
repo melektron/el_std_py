@@ -167,6 +167,9 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
                 # patch the delta into the events
                 # the _mouser_wheel_all internally inverts this again
                 e.delta = 1 if up else -1
+                # sometimes the event widget is a string and does not have a master which is a problem
+                # (we catch this here because ctk's internal functions don't)
+                if not hasattr(e.widget, "master"): return
                 # use this function as it provides the complete scrolling feature set
                 self._mouse_wheel_all(e)    
             self.bind_all("<Button-4>", lambda e: scroll(e, True))
