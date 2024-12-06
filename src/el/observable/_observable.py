@@ -81,6 +81,8 @@ class Observable(typing.Generic[T]):
         for cases where the usage of such operators is not possible or
         would be confusing.
         """
+        return self >> observer
+
     def __rshift__(self, observer: ObserverFunction[T, R]) -> "Observable[R]":
         """
         Adds a new observer function to the observable.
