@@ -19,4 +19,4 @@ from ._colors import (
     rgb_to_hex_str,
 )
 from ._dynamic_config import apply_to_config, apply_to_tk_var
-from ._scaling import apply_widget_scaling
+from ._scaling import apply_widget_scaling, reverse_widget_scaling, apply_window_scaling, reverse_window_scaling
