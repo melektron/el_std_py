@@ -172,8 +172,8 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
                 if not hasattr(e.widget, "master"): return
                 # use this function as it provides the complete scrolling feature set
                 self._mouse_wheel_all(e)    
-            self.bind_all("<Button-4>", lambda e: scroll(e, True))
-            self.bind_all("<Button-5>", lambda e: scroll(e, False))
+            self.bind_all("<Button-4>", lambda e: scroll(e, True), add=True)
+            self.bind_all("<Button-5>", lambda e: scroll(e, False), add=True)
 
         # by default, make option buttons the same color as the frame
         self._option_fg_color = (
