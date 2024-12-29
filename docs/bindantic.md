@@ -1,7 +1,7 @@
 # bindantic
 
 Bindantic is an unofficial "extension" (one could call it a "mod") for the popular [pydantic](https://docs.pydantic.dev/latest/) data validation library.
-It that adds support for defining, dumping and validating binary data structures (like in C/C++) while maintaining all pydantic features, meaning that data can be easily converted between JSON, Python and binary.
+It adds support for defining, dumping and validating binary data structures (like in C/C++) while maintaining all pydantic features, meaning that data can be easily converted between JSON, Python and binary.
 
 This is extremely useful for efficient communication with systems programmed in C or C++ such as microcontrollers, over protocols like serial, where JSON might not be a viable solution both in terms of information density, transfer speed, processing power and memory limitation.
 
@@ -52,7 +52,7 @@ class MyStructure(bin.BaseStruct):
 assert MyStructure.__bindantic_byte_consumption__ == 13 # This attribute defines how many bytes the structure needs
 ```
 
-Although these fields look like they have weird datatypes any you may fear that they behave weirdly, but fear not, because all these shortcut types provided by pydantic are actually just type aliases to the standard python type with some metadata added using ```typing.Annotated```. For example, this is what a Uint32 looks like under the hood:
+Although these fields look like they have weird datatypes and you may fear that they behave weirdly, but fear not, because all these shortcut types provided by bindantic are actually just type aliases to the standard python type with some metadata added using ```typing.Annotated```. For example, this is what a Uint32 looks like under the hood:
 
 ```python
 Uint32 = Annotated[int, IntegerField(4, "I", False), IntegerField.range_limit(False, 32)]
@@ -60,7 +60,7 @@ Uint32 = Annotated[int, IntegerField(4, "I", False), IntegerField.range_limit(Fa
 
 As per [definition in the standard](https://docs.python.org/3/library/typing.html#typing.Annotated), type checkers treat annotated types the same way as their underlying type, in this case ```int```. The extra metadata is then used at runtime to deduce how fields are arranged in binary form (or in JSON when using pydantic functions).
 
-As demonstrated by teh string field, sometimes it is necessary to provide extra metadata such as the length of a string (represented as char[] in the structure). To do so, bindantic provides handy helper functions such as ```bindantic.Len``` that can be used together with ```typing.Annotated``` to configure the field further.
+As demonstrated by the string field, sometimes it is necessary to provide extra metadata such as the length of a string (represented as char[] in the structure). To do so, bindantic provides handy helper functions such as ```bindantic.Len``` that can be used together with ```typing.Annotated``` to configure the field further.
 
 Once a structure is defined, you can instantiate it with full IntelliSense support and data validation, just like pydantic. Bindantic already applies basic constraints to fields where it makes sense, such as limiting numbers to the allowed range for the specified binary integer type (as evident in the code excerpt above).
 
@@ -85,10 +85,10 @@ inst = MyStructure(
 )
 ```
 
-All of this can also be done with pydantic on its own, but now we can also convert this field to binary:
+All of this can also be done with pydantic on its own, but now we can also convert this struct to binary:
 
 ```python 
-as_json = inst.model_dump_json()    # converting to JSON is pydantic feature
+as_json = inst.model_dump_json()    # converting to JSON is a pydantic feature
 as_bytes = inst.struct_dump_bytes() # bindantic exclusive
 
 assert as_bytes == b"\0\0\0\x56\x05Hello\0\0\0" # assuming big-endian byte order
