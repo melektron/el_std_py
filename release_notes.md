@@ -1,10 +1,10 @@
 - fixed links to Pydantic in the docs
 - added function to ```terminal``` module to quickly change log levels with error handling and parsing
 - corrected the incorrect example of ```bindantic``` literal enums in the docs
-- added len() support to ```bindantic``` structs which will return their size in bytes
+- added ```len()``` support to ```bindantic``` structs which will return their size in bytes
 - added exceptions:
-  - IncompleteReadError
-  - InvalidPathError
+  - ```IncompleteReadError```
+  - ```InvalidPathError```
 - added simple coloring support for terminal print() method
 - add ReassignGuard to ```typing_tools``` which is a descriptor preventing re-assignment of a previously assigned attribute. This is for example useful to prevent accidental re-assignment of observables.
 - fixed bug where variable wasn't declared global in ```terminal``` module
@@ -26,3 +26,5 @@
 - new functions for observables:
   - ```Observable.observe()``` for cases where the ```>>``` Operator is confusing or doesn't work
 - added ```time_utils``` modules
+- added ```mpl_utils``` Module
+  - ```DraggingManager``` class for improved Artist dragging implementation compared to default matplotlib
