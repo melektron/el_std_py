@@ -11,4 +11,11 @@ LICENSE file in the root directory of this source tree.
 Matplotlib utilities
 """
 
-from ._dragging_manager import DraggingManger
+from ._dragging_manager import (
+    DraggingManger,
+    DraggableArtistEntry,
+    DraggableAnnotationEntry,
+    DraggableOffsetBoxEntry,
+    DraggableLegendEntry,
+)
+from ._transforms import FunctionTransform2D

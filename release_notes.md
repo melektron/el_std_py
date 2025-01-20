@@ -25,6 +25,9 @@
   - ```async_mpc_pipe_recv``` Asynchronous multiprocessing pipe reader
 - new functions for observables:
   - ```Observable.observe()``` for cases where the ```>>``` Operator is confusing or doesn't work
-- added ```time_utils``` modules
-- added ```mpl_utils``` Module
+- added ```time_utils``` module
+- added ```mpl_utils``` module (matplotlib utils)
   - ```DraggingManager``` class for improved Artist dragging implementation compared to default matplotlib
+  - ```FunctionTransform2D``` class for dynamic transformation based on provided function (like lambdas)
+- added ```containers``` module
+  - ```all_equal``` check if all elements in an iterable are equal

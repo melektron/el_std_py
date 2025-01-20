@@ -17,6 +17,11 @@ try:
     import matplotlib.artist as mpl_artist
     import matplotlib.backend_bases as mpl_bases
     import matplotlib.text as mpl_text
+    import matplotlib.transforms as mpl_trans
+    import matplotlib.offsetbox as mpl_off
+    import matplotlib.legend as mpl_legend
+    import numpy as np
+    import numpy.typing as npt
 
 except ImportError:
-    raise SetupError("el.mpl_utils requires matplotlib. Please install it before using el.mpl_utils.")
+    raise SetupError("el.mpl_utils requires matplotlib and numpy. Please install it before using el.mpl_utils.")

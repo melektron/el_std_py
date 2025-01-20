@@ -14,17 +14,212 @@ https://matplotlib.org/stable/users/explain/animations/blitting.html
 """
 
 import typing
-import dataclasses
 
 from ._deps import *
 
+DragCheckCB = typing.Callable[[], bool]
+PosValidatorCB = typing.Callable[[tuple[int, int], tuple[int, int]], tuple[int, int]]
 
-@dataclasses.dataclass
 class DraggableArtistEntry:
-    artist: mpl_artist.Artist
-    on_drag_start: typing.Callable[[], bool] | None
-    pos_validator: typing.Callable[[tuple[int, int], tuple[int, int]], tuple[int, int]] | None
-    on_drag_end: typing.Callable[[], bool] | None
+
+    def __init__(
+        self,
+        artist: mpl_artist.Artist,
+        on_drag_start: DragCheckCB | None = None,
+        pos_validator: PosValidatorCB | None = None,
+        on_drag_end: DragCheckCB | None = None,
+    ):
+        """
+        Representation of a draggable artist with all required data.
+
+        Parameters
+        ----------
+        artist : `mpl_artist.Artist`
+            The artist to make draggable. Subtypes will specialize this
+        on_drag_start : `typing.Callable[[], bool] | None`, optional
+            Callback indicating dragging is about to start (artist picked), by default None.
+            If this callback is provided, it must return True to accept a drag.
+            If it returns false, the drag is aborted. This way dragging can be dynamically and
+            temporarily disabled by external factors.
+        pos_validator : `typing.Callable[[tuple[int, int], tuple[int, int]], tuple[int, int]] | None`, optional
+            Position validator function. This is called for every movement during a drag to
+            validate the new position the element is moved to. This is useful for limiting
+            the movement of the artist to some range or direction.
+
+            *Parameters*:
+                tuple[int, int]: starting position of the artist before the drag (in artist coordinate system)
+                tuple[int, int]: the current target position the artist would be moved to by the drag (in artist coordinate system)
+            *Return Value*:
+                tuple[int, int]: the (possibly modified) target position the artist should really be moved to
+
+        on_drag_end : `typing.Callable[[], bool] | None`, optional
+            Callback indicating dragging is about to end (artist released), by default None
+            If this callback is provided, it must return True to accept a drag.
+            If it returns false, the drag is aborted and the artist will be moved back to the starting position.
+        """
+        self.artist = artist
+        self.on_drag_start = on_drag_start
+        self.pos_validator = pos_validator
+        self.on_drag_end = on_drag_end
+
+    def save_artist_starting_position(self) -> None:
+        """
+        Called on drag start to save the starting position.
+        To be overwritten by artist-specific implementation.
+        """
+
+    def set_artist_offset(self, dx: int, dy: int) -> None:
+        """
+        Called whenever the artist is to be moved to a new position
+        represented as an offset from the starting position in pixels.
+        To be overwritten by artist-specific implementation.
+        """
+    
+    def finalize_artist_drag(self) -> None:
+        """
+        Called when drag is finished by releasing. Can be used
+        to do some final position calculations or checks.
+        """
+
+
+class DraggableAnnotationEntry(DraggableArtistEntry):
+
+    def __init__(
+        self,
+        annotation: mpl_text.Annotation,
+        on_drag_start: DragCheckCB | None = None,
+        pos_validator: PosValidatorCB | None = None,
+        on_drag_end: DragCheckCB | None = None,
+    ):
+        super().__init__(annotation, on_drag_start, pos_validator, on_drag_end)
+        self.artist: mpl_text.Annotation
+        self._start_x: int = 0 
+        self._start_y: int = 0 
+        self._start_transformed_x: int = 0 
+        self._start_transformed_y: int = 0 
+
+    @typing.override
+    def save_artist_starting_position(self) -> None:
+        # the draggable part is the text annotation element, not the target position.
+        self._start_transformed_x, self._start_transformed_y = self.artist.xyann
+        # We get the absolute screen coordinates using the annotation transform
+        self._start_x, self._start_y = self.artist.get_transform().transform(self.artist.xyann)
+
+    @typing.override
+    def set_artist_offset(self, dx: int, dy: int) -> None:
+        # transform the absolute coordinates back to annotation coordinate system
+        target_x, target_y = self.artist.get_transform().inverted().transform((
+            self._start_x + dx,
+            self._start_y + dy
+        ))
+        # apply validator if defined
+        if self.pos_validator is not None:
+            target_x, target_y = self.pos_validator(
+                (self._start_transformed_x, self._start_transformed_y),
+                (target_x, target_y)
+            )
+        self.artist.xyann = (target_x, target_y)
+
+
+class DraggableOffsetBoxEntry(DraggableArtistEntry):
+
+    def __init__(
+        self,
+        artist: mpl_artist.Artist,
+        offsetbox: mpl_off.OffsetBox,
+        on_drag_start: DragCheckCB | None = None,
+        pos_validator: PosValidatorCB | None = None,
+        on_drag_end: DragCheckCB | None = None,
+    ):
+        super().__init__(artist, on_drag_start, pos_validator, on_drag_end)
+        self.offsetbox = offsetbox
+        self._start_x: int = 0 
+        self._start_y: int = 0 
+        self._start_transformed_x: int = 0 
+        self._start_transformed_y: int = 0 
+
+    @typing.override
+    def save_artist_starting_position(self) -> None:
+        renderer = self.offsetbox.get_figure()._get_renderer()
+        # We get the absolute screen coordinates using the annotation transform
+        self._start_x, self._start_y = self.offsetbox.get_offset(
+            self.offsetbox.get_bbox(renderer), renderer
+        )
+        # idk why this is needed but the official implementation does it as well (see offsetbox.py@1542)
+        self.offsetbox.set_offset((self._start_x, self._start_y))
+
+    @typing.override
+    def set_artist_offset(self, dx: int, dy: int) -> None:
+        # offsetbox has not transform, we always operate on absolute coords
+        target_pos = (
+            self._start_x + dx,
+            self._start_y + dy
+        )
+        # apply validator if defined
+        if self.pos_validator is not None:
+            target_x, target_y = self.pos_validator(
+                (self._start_x, self._start_x),
+                (target_x, target_y)
+            )
+        self.offsetbox.set_offset(target_pos)
+
+    def get_loc_in_canvas(self) -> tuple:
+        # This has been taken from matplotlib's DraggableOffsetBox implementation,
+        # don't really understand what this does and why it doesn't use the normal get_offset() method
+        renderer = self.offsetbox.get_figure()._get_renderer()
+        bbox = self.offsetbox.get_bbox(renderer)
+        ox, oy = self.offsetbox._offset
+        loc_in_canvas = (ox + bbox.x0, oy + bbox.y0)
+        return loc_in_canvas
+
+
+class DraggableLegendEntry(DraggableOffsetBoxEntry):
+
+    def __init__(
+        self,
+        legend: mpl_legend.Legend,
+        update: typing.Literal["loc", "bbox"] = "loc",
+        on_drag_start: DragCheckCB | None = None,
+        pos_validator: PosValidatorCB | None = None,
+        on_drag_end: DragCheckCB | None = None,
+    ):
+        """
+        Entry for matplotlibs `Legend` to support dragging.
+        This supports everything from the official dragging implementation
+        but adds the features of the DraggingManager.
+
+        Parameters
+        ----------
+        legend : `Legend`
+            The `Legend` instance to wrap.
+        update : {'loc', 'bbox'}, optional
+            If "loc", update the *loc* parameter of the legend upon finalizing.
+            If "bbox", update the *bbox_to_anchor* parameter.
+        """
+        super().__init__(legend, legend._legend_box, on_drag_start, pos_validator, on_drag_end)
+        self.artist: mpl_legend.Legend
+        self._update: typing.Literal["loc", "bbox"] = update
+
+    @typing.override
+    def finalize_artist_drag(self):
+        if self._update == "loc":
+            self._update_loc(self.get_loc_in_canvas())
+        elif self._update == "bbox":
+            self._update_bbox_to_anchor(self.get_loc_in_canvas())
+
+    def _update_loc(self, loc_in_canvas):
+        bbox = self.artist.get_bbox_to_anchor()
+        # if bbox has zero width or height, the transformation is
+        # ill-defined. Fall back to the default bbox_to_anchor.
+        if bbox.width == 0 or bbox.height == 0:
+            self.artist.set_bbox_to_anchor(None)
+            bbox = self.artist.get_bbox_to_anchor()
+        bbox_transform = mpl_trans.BboxTransformFrom(bbox)
+        self.artist._loc = tuple(bbox_transform.transform(loc_in_canvas))
+
+    def _update_bbox_to_anchor(self, loc_in_canvas):
+        loc_in_bbox = self.artist.axes.transAxes.transform(loc_in_canvas)
+        self.artist.set_bbox_to_anchor(loc_in_bbox)
 
 
 class DraggingManger:
@@ -41,17 +236,13 @@ class DraggingManger:
         self._background: typing.Any = ...
 
         # all artist managed by this manager
-        self._artists: dict[mpl_artist.Artist, DraggableArtistEntry] = {}
+        self._artist_entries: dict[mpl_artist.Artist, DraggableArtistEntry] = {}
         # the artist currently being dragged
-        self._current_element: DraggableArtistEntry | None = None
+        self._current_entry: DraggableArtistEntry | None = None
 
-        # mouse and artist starting positions of drag to calculate deltas
+        # mouse starting positions of drag to calculate deltas
         self._mouse_start_x: int = 0 
         self._mouse_start_y: int = 0 
-        self._artist_start_x: int = 0 
-        self._artist_start_y: int = 0 
-        self._artist_start_transformed_x: int = 0 
-        self._artist_start_transformed_y: int = 0 
 
         # callback id's 
         self._cids: list[int] = []
@@ -77,58 +268,32 @@ class DraggingManger:
             self._canvas = None
             self._use_blit = False
 
-    def register_artist(
-        self, 
-        artist: mpl_artist.Artist,
-        on_drag_start: typing.Callable[[], bool] | None = None,
-        pos_validator: typing.Callable[[tuple[int, int], tuple[int, int]], tuple[int, int]] | None = None,
-        on_drag_end: typing.Callable[[], bool] | None = None
-    ) -> None:
-        """
-        Registers an artist to be made draggable.
+    def register_artist(self, entry: DraggableArtistEntry) -> None:
+        """Registers an artist to be made draggable.
 
         Parameters
         ----------
-        artist : mpl_artist.Artist
-            The artist to make draggable. This must be a supported artist type
-            whose position can be read and set
-        on_drag_start : typing.Callable[[], bool] | None, optional
-            Callback indicating dragging is about to start (artist picked), by default None.
-            If this callback is provided, it must return True to accept a drag.
-            If it returns false, the drag is aborted. This way dragging can be dynamically and
-            temporarily disabled by external factors.
-        pos_validator : typing.Callable[[tuple[int, int], tuple[int, int]], tuple[int, int]] | None, optional
-            Position validator function. This is called for every movement during a drag to
-            validate the new position the element is moved to. This is useful for limiting
-            the movement of the artist to some range or direction.
-            Parameters:
-                tuple[int, int]: starting position of the artist before the drag (in artist coordinate system)
-                tuple[int, int]: the current target position the artist would be moved to by the drag (in artist coordinate system)
-            Return Value:
-                tuple[int, int]: the (possibly modified) target position the artist should really be moved to
-        on_drag_end : typing.Callable[[], bool] | None, optional
-            Callback indicating dragging is about to end (artist released), by default None
-            If this callback is provided, it must return True to accept a drag.
-            If it returns false, the drag is aborted and the artist will be moved back to the starting position.
+        entry : `DraggableArtistEntry`
+            An object of a subclass of `DraggableArtistEntry` that implements
+            the dragging functionality for a specific artist type.
+            currently supported:
+              - DraggableAnnotationEntry
+              - DraggableOffsetBoxEntry
+              - DraggableLegendEntry
         """
 
-        if artist in self._artists:
+        if entry.artist in self._artist_entries:
             return
-        else:
-            if not artist.pickable():
-                # save the old pickable state (bit of pfusch) to restore it later
-                artist._dm_was_previously_pickable = artist.pickable()
-                artist.set_picker(True)
-            self._artists[artist] = DraggableArtistEntry(
-                artist=artist,
-                on_drag_start=on_drag_start,
-                pos_validator=pos_validator,
-                on_drag_end=on_drag_end
-            )
+        if not entry.artist.pickable():
+            # save the old pickable state (bit of pfusch) to restore it later
+            entry.artist._dm_was_previously_pickable = entry.artist.pickable()
+            entry.artist.set_picker(True)
+
+        self._artist_entries[entry.artist] = entry
 
     def unregister_artist(self, artist: mpl_artist.Artist) -> None:
-        if artist in self._artists:
-            del self._artists[artist]
+        if artist in self._artist_entries:
+            del self._artist_entries[artist]
             # restore previous pickable state
             if hasattr(artist, "_dm_was_previously_pickable"):
                 artist.set_picker(artist._dm_was_previously_pickable)
@@ -136,39 +301,39 @@ class DraggingManger:
     def _drag_on_pick(self, event: mpl_bases.PickEvent) -> None:
         if self._canvas is None:
             return
-        if event.artist in self._artists and self._current_element is None:
+        if event.artist in self._artist_entries and self._current_entry is None:
             # run cb if defined
-            if self._artists[event.artist].on_drag_start is not None:
-                if not self._artists[event.artist].on_drag_start():
+            if self._artist_entries[event.artist].on_drag_start is not None:
+                if not self._artist_entries[event.artist].on_drag_start():
                     return  # return if callback aborts drag
-            self._current_element = self._artists[event.artist]
+            self._current_entry = self._artist_entries[event.artist]
             self._mouse_start_x = event.mouseevent.x
             self._mouse_start_y = event.mouseevent.y
-            self._save_artist_starting_position()
+            self._current_entry.save_artist_starting_position()
             # prepare blitting if enabled
             if self._use_blit:
-                self._current_element.artist.set_animated(True) # disable auto drawing of the target
+                self._current_entry.artist.set_animated(True) # disable auto drawing of the target
                 self._canvas.draw() # draw the background
                 # save background, only available on blitting supporting backends
-                self._background = self._canvas.copy_from_bbox(self._current_element.artist.get_figure().bbox)
+                self._background = self._canvas.copy_from_bbox(self._current_entry.artist.get_figure().bbox)
                 # restore the background (otherwise the artist disappears if not moved for some reason)
                 self._canvas.restore_region(self._background)
-                self._current_element.artist.draw(self._current_element.artist.get_figure()._get_renderer())    # manually draw the artist
+                self._current_entry.artist.draw(self._current_entry.artist.get_figure()._get_renderer())    # manually draw the artist
                 self._canvas.blit() # update the screen
 
     def _drag_on_motion(self, event: mpl_bases.MouseEvent) -> None:
         if self._canvas is None:
             return
-        if self._current_element is not None:
+        if self._current_entry is not None:
             # calculate the deltas from start position
             dx = event.x - self._mouse_start_x
             dy = event.y - self._mouse_start_y
-            self._set_artist_offset(dx, dy)
+            self._current_entry.set_artist_offset(dx, dy)
             if self._use_blit:
                 # re-use the background
                 self._canvas.restore_region(self._background)
                 # manually re-draw only the artist
-                self._current_element.artist.draw(self._current_element.artist.get_figure()._get_renderer())
+                self._current_entry.artist.draw(self._current_entry.artist.get_figure()._get_renderer())
                 # update screen
                 self._canvas.blit()
             else:
@@ -178,52 +343,25 @@ class DraggingManger:
     def _drag_on_release(self, event: mpl_bases.MouseEvent) -> None:
         if self._canvas is None:
             return
-        if self._current_element is not None:
+        if self._current_entry is not None:
             dx = event.x - self._mouse_start_x
             dy = event.y - self._mouse_start_y
 
             # run cb if defined
-            if self._current_element.on_drag_end is not None:
-                if self._current_element.on_drag_end(): # if cb returns True the drag is accepted
-                    self._set_artist_offset(dx, dy)
-                    self._finalize_artist_drag()
+            if self._current_entry.on_drag_end is not None:
+                if self._current_entry.on_drag_end(): # if cb returns True the drag is accepted
+                    self._current_entry.set_artist_offset(dx, dy)
+                    self._current_entry.finalize_artist_drag()
                 else:
-                    self._set_artist_offset(0, 0)      # drag rejected, go back to initial position
+                    self._current_entry.set_artist_offset(0, 0)      # drag rejected, go back to initial position
             else:
-                self._set_artist_offset(dx, dy)
-                self._finalize_artist_drag()
+                self._current_entry.set_artist_offset(dx, dy)
+                self._current_entry.finalize_artist_drag()
 
-            self._current_element.artist.set_animated(False)    # back to normal rendering again 
-            self._current_element = None
+            self._current_entry.artist.set_animated(False)    # back to normal rendering again 
+            self._canvas.draw()     # draw the entire canvas once to guarantee proper z-ordering
+            self._current_entry = None
+            self._background = None # make sure this object does not remain as it sometimes causes problems
 
-    def _save_artist_starting_position(self) -> None:
-        if isinstance(self._current_element.artist, mpl_text.Annotation):
-            # the draggable part is the text annotation element, not the target position.
-            self._artist_start_transformed_x, self._artist_start_transformed_y = self._current_element.artist.xyann
-            # We get the absolute screen coordinates using the annotation transform
-            self._artist_start_x, self._artist_start_y = self._current_element.artist.get_transform().transform(self._current_element.artist.xyann)
-        # implement more elements here if required
 
-    def _set_artist_offset(self, dx: int, dy: int) -> None:
-        """ Moves the artist ot an offset from it's starting position """
-        if isinstance(self._current_element.artist, mpl_text.Annotation):
-            # transform the absolute coordinates back to annotation coordinate system
-            target_x, target_y = self._current_element.artist.get_transform().inverted().transform((
-                self._artist_start_x + dx,
-                self._artist_start_y + dy
-            ))
-            # apply validator if defined
-            if self._current_element.pos_validator is not None:
-                target_x, target_y = self._current_element.pos_validator(
-                    (self._artist_start_transformed_x, self._artist_start_transformed_y),
-                    (target_x, target_y)
-                )
-            self._current_element.artist.xyann = (target_x, target_y)
-        # implement more required types here
-    
-    def _finalize_artist_drag(self) -> None:
-        """
-        Called when drag is finished by releasing. Can be used
-        to do some final position calculations or checks
-        """
-        # for now we don't need this
+
