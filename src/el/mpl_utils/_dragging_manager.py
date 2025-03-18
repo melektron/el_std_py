@@ -87,12 +87,14 @@ class DraggableAnnotationEntry(DraggableArtistEntry):
     def __init__(
         self,
         annotation: mpl_text.Annotation,
+        move_target: bool = False,  # whether we want to move the target position. by default we move the text position. (only works on backends that support get_renderer())
         on_drag_start: DragCheckCB | None = None,
         pos_validator: PosValidatorCB | None = None,
         on_drag_end: DragCheckCB | None = None,
     ):
         super().__init__(annotation, on_drag_start, pos_validator, on_drag_end)
         self.artist: mpl_text.Annotation
+        self._move_target = move_target
         self._start_x: int = 0 
         self._start_y: int = 0 
         self._start_transformed_x: int = 0 
@@ -100,15 +102,38 @@ class DraggableAnnotationEntry(DraggableArtistEntry):
 
     @typing.override
     def save_artist_starting_position(self) -> None:
+        # select target or text position depending on config
+        if self._move_target:
+            coords = self.artist.xy
+            # we need to abuse some internal functions to get the target point transform
+            # See mpl text.py@1470 (at least at the time of writing) for the _get_xy_transform function
+            # we also need the renderer which we really should not have. We need to get it some way,
+            # this only works on some backends, such as TkAgg
+            # https://stackoverflow.com/questions/60678571/how-do-i-obtain-a-matplotlib-renderer-to-pass
+            trans = self.artist._get_xy_transform(self.artist.get_figure().canvas.get_renderer(), self.artist.xycoords)
+        else:
+            coords = self.artist.xyann
+            trans = self.artist.get_transform()
         # the draggable part is the text annotation element, not the target position.
-        self._start_transformed_x, self._start_transformed_y = self.artist.xyann
+        self._start_transformed_x, self._start_transformed_y = coords
         # We get the absolute screen coordinates using the annotation transform
-        self._start_x, self._start_y = self.artist.get_transform().transform(self.artist.xyann)
+        self._start_x, self._start_y = trans.transform(coords)
 
     @typing.override
     def set_artist_offset(self, dx: int, dy: int) -> None:
+        # select target or text transform depending on config
+        if self._move_target:
+            # we need to abuse some internal functions to get the target point transform
+            # See mpl text.py@1470 (at least at the time of writing) for the _get_xy_transform function
+            # we also need the renderer which we really should not have. We need to get it some way,
+            # this only works on some backends, such as TkAgg
+            # https://stackoverflow.com/questions/60678571/how-do-i-obtain-a-matplotlib-renderer-to-pass
+            trans = self.artist._get_xy_transform(self.artist.get_figure().canvas.get_renderer(), self.artist.xycoords)
+        else:
+            trans = self.artist.get_transform()
+
         # transform the absolute coordinates back to annotation coordinate system
-        target_x, target_y = self.artist.get_transform().inverted().transform((
+        target_x, target_y = trans.inverted().transform((
             self._start_x + dx,
             self._start_y + dy
         ))
@@ -118,7 +143,12 @@ class DraggableAnnotationEntry(DraggableArtistEntry):
                 (self._start_transformed_x, self._start_transformed_y),
                 (target_x, target_y)
             )
-        self.artist.xyann = (target_x, target_y)
+        
+        # change target or text position depending on config
+        if self._move_target:
+            self.artist.xy = (target_x, target_y)
+        else:
+            self.artist.xyann = (target_x, target_y)
 
 
 class DraggableOffsetBoxEntry(DraggableArtistEntry):
