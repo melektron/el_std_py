@@ -21,8 +21,8 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/melektron/el_py"
-Issues = "https://github.com/melektron/el_py/issues"
+Homepage = "https://github.com/melektron/el_std_py"
+Issues = "https://github.com/melektron/el_std_py/issues"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]

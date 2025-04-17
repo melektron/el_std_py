@@ -28,6 +28,15 @@ While I might write more comprehensive documentation for some features along the
 - ```el.observable```: Data wrapper classes allowing the observation and chaining of value change events and thus declaratively defining data paths
 - ```el.datastore```: Zero-setup Data and configuration file handler that uses pydantic do define data models and ```asyncio``` to automatically store/load them to/from disc in the background without having to touch filepaths or files.
 - [```el.bindantic```](docs/bindantic.md): An unofficial "extension" (one could call it a "mod") for [pydantic](https://docs.pydantic.dev/latest/) that adds support for defining, dumping and validating binary data structures (like in C), while maintaining all pydantic features.
+- ```el.ctk_utils```: Utility functions and classes for working with ```customtkinter```
+- ```el.widgets```: Additional ```customtkinter``` widgets
+- ```el.datastore```: Zero-setup Data and configuration file handler that uses pydantic do define data models and ```asyncio``` to automatically store/load them to/from disc in the background without having to touch filepaths or files.
+- ```el.history_manager``` (experimental): Utility to manage history of pydantic model instances for implementing Undo/Redo functionality
+- ```el.callback_manager```: Simple callback registry class for exposing events
+- ```el.numbers``` (experimental): Utilities for working with numbers, such as linear mapping.
+- ```el.time_utils```: Utilities for working with dates and times
+- ```el.mpl_utils```: Utilities for working with ```matplotlib```
+- ```el.containers```: Utilities for working with container objects
 
 
 ## Contribution
