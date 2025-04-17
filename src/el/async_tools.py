@@ -100,3 +100,26 @@ async def async_mpc_pipe_recv[RT](reader: "mpc.Connection[Any, RT]", timeout: fl
 
         return reader.recv()
     
+
+class ResetSemaphore(asyncio.Semaphore):
+    """A Semaphore implementation that can be reset.
+
+    A semaphore manages an internal counter which is decremented by each
+    acquire() call and incremented by each release() call. The counter
+    can never go below zero; when acquire() finds that it is zero, it blocks,
+    waiting until some other thread calls release().
+    By using the reset() method, the counter can immediately be reset to zero
+    or another specified value.
+
+    Semaphores also support the context management protocol.
+
+    The optional init argument gives the initial value for the internal
+    counter; it defaults to 1. If the value given is less than 0,
+    ValueError is raised.
+    """
+    def __init__(self, value=1):
+        super().__init__(value)
+    
+    def reset(self, value: int = 0) -> None:
+        """ Resets the internal counter to the provided value """
+        self._value = value
