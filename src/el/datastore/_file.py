@@ -45,7 +45,7 @@ class File(typing.Generic[MT]):
     # they should all point to the same instance ensuring that the "instances" are "synced" live.
     __all_files__: dict[str, "File"] = weakref.WeakValueDictionary()
 
-    def __new__(cls, path: list[str], model: type[MT], *args, **kwargs):
+    def __new__(cls, path: list[str], model: type[MT], extension: str = "json", *args, **kwargs):
         """
         Creates a new instance of a File if it is is necessary or returns
         a reference to an existing File instance if one pointing to the same path
@@ -53,7 +53,7 @@ class File(typing.Generic[MT]):
         existing file a type error is raised.
         """
 
-        strpath = str(path)
+        strpath = str(path) + extension
 
         # check for existing files
         file = cls.__all_files__.get(strpath)
@@ -74,7 +74,7 @@ class File(typing.Generic[MT]):
         file.__file_already_initialized__ = True
         return file
 
-    def __init__(self, path: list[str], model: type[MT]) -> None:
+    def __init__(self, path: list[str], model: type[MT], extension: str = "json") -> None:
         """
         Creates a datastore file object from a datastore path.
         This path may be interpreted as a file path to determine the
@@ -97,6 +97,8 @@ class File(typing.Generic[MT]):
 
         # the logical path/identification
         self._path = path
+        # the extension to save the file with (if applicable)
+        self._extension = extension
         # the data model specifying the structure of the file
         self._model_type = model
         # the actual data object reference holding the content
@@ -110,7 +112,7 @@ class File(typing.Generic[MT]):
             raise ValueError("Datastore path must not be empty.")
 
         # convert path to the actual location the file is stored in
-        self._storage_path = self._get_storage_location_from_path(self._path)
+        self._storage_path = self._get_storage_location_from_path(self._path, self._extension)
         _log.debug(f"Initializing datastore file stored in: {self._storage_path}")
 
         # create all the directories leading up to the file if not existing already
@@ -210,7 +212,7 @@ class File(typing.Generic[MT]):
         return element
 
     @classmethod
-    def _get_storage_location_from_path(cls, path: list[str]) -> pathlib.Path:
+    def _get_storage_location_from_path(cls, path: list[str], extension: str) -> pathlib.Path:
         """
         convert the logical path into an actual storage location. ATM the files
         are stored as regular filesystem files and the path mostly specifies the
@@ -225,7 +227,7 @@ class File(typing.Generic[MT]):
         storage_path = _global_datastore_base_path
         for el in path:
             storage_path = storage_path / cls._sanitize_path_element(el)
-        return storage_path.with_suffix(".json")
+        return storage_path.with_suffix(f".{extension}")
 
     def _create_default_file(self):
         """

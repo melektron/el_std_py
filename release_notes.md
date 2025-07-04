@@ -1,2 +1,3 @@
 - added ```ResetSemaphore``` to ```async_tools```
 - added ```ToolbarButton``` to ```widgets```
+- added the ability to specify a file extension on ```el.datastore``` files and specialized files

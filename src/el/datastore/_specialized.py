@@ -61,13 +61,13 @@ def specialized_file(model_type: type[OT]) -> type[SpecializedFile[OT]]:
 # decorator used with arguments, target class not passed and instead the function needs to return the actual decorator
 @typing.overload
 def specialized_file(
-    base_path: list[str],
+    base_path: list[str], extension: str = "json"
 ) -> typing.Callable[[type[IT]], type[SpecializedFile[IT]]]:
     ...
 
 
 def specialized_file(
-    model_type: type[OT] = None, *, base_path: list[str] = None
+    model_type: type[OT] = None, *, base_path: list[str] = None, extension: str = "json",
 ) -> typing.Union[
     type[SpecializedFile[OT]], typing.Callable[[type[IT]], type[SpecializedFile[IT]]]
 ]:
@@ -122,6 +122,20 @@ def specialized_file(
     The two above variations are functionally equivalent, but with the base
     path you don't need to remember to specify the same base path everywhere a user file
     is accessed, which reduces the risk of bugs.
+
+    By default the files are saved with a .json extension. This can be changed using the
+    "extension" parameter:
+
+    ```python
+    @specialized_file(base_path=["users"], extension="user")
+    class UserDataFileOrganized(pydantic.BaseModel):
+        user_name: str = ""
+        join_data: int = 0
+        followers: int = 0
+
+    # This will create a file called "users/user123423.user"
+    user_data_org = UserDataFileOrganized(["user123423"])
+    ```
     """
 
     # The function which actually decorates the class
@@ -143,7 +157,7 @@ def specialized_file(
                     path = base_path + path
                 
                 # construct the actual file object
-                self.__actual_file__ = File(path, model_type_inner)
+                self.__actual_file__ = File(path, model_type_inner, extension=extension)
             
             def __getattr__(self, __name: str) -> typing.Any:
                 # When __actual_file__ has not been defined jet, make it become
