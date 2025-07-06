@@ -1,3 +1,6 @@
 - added ```ResetSemaphore``` to ```async_tools```
 - added ```ToolbarButton``` to ```widgets```
 - added the ability to specify a file extension on ```el.datastore``` files and specialized files
+- added the ability to change autosave behavior of ```el.datastore``` files and specialized files
+- added the ability to access public  ```el.datastore.File``` attributes on specialized files
+- generalized parameter passing of ```el.datastore.File``` and ```el.datastore.specialized_file```

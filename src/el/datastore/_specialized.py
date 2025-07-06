@@ -124,7 +124,14 @@ class SpecializedFile(pydantic.BaseModel, typing.Generic[OT]):
     # of a product type using a sum type (union) for intellisense (so you get recommended the attributes
     # of both OT and File). This is however quite a hack and will not play nicely with mypy, so might have
     # to revisit that in the future.
-    def __new__(cls, *args, **kwargs) -> OT | File:
+    def __new__(
+        cls, 
+        # we need to explicitly mention all the parameters here again to get full intellisense when initializing
+        path: list[str] = None,
+        extension: str = "json",
+        autosave: bool = True,
+        autosave_interval: float = 5,
+    ) -> OT | File:
         ...
 
 
