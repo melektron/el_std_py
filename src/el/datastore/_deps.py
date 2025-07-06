@@ -15,6 +15,10 @@ from el.errors import SetupError
 
 try:
     import pydantic
+    import pydantic.main
     import pydantic_core
 except ImportError:
     raise SetupError("el.datastore requires pydantic. Please install it before using el.datastore.")
+
+# datastore path type
+type DSPath = list[str]

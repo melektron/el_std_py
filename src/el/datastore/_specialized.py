@@ -17,6 +17,7 @@ import typing
 import pydantic
 import logging
 
+from ._deps import *
 from ._file import File
 
 _log = logging.getLogger(__name__)
@@ -46,7 +47,7 @@ class SpecializedFile(pydantic.BaseModel, typing.Generic[OT]):
     the specialized_file decorator. When parameters are specified
     in the decorator, those will be the default values.
 
-    path : list[str]
+    path : DSPath
         The location or identification to store the file data under.
         This consists of one or more string values that define a hierarchical location
         for sorting like a file system path, although it is not guaranteed for these to
@@ -74,7 +75,7 @@ class SpecializedFile(pydantic.BaseModel, typing.Generic[OT]):
     # Init method to get the correct type-hints and description when instantiating
     def __init__(
         self, 
-        path: list[str] = None,
+        path: DSPath = None,
         extension: str = "json",
         autosave: bool = True,
         autosave_interval: float = 5,
@@ -91,7 +92,7 @@ class SpecializedFile(pydantic.BaseModel, typing.Generic[OT]):
         the specialized_file decorator. When parameters are specified
         in the decorator, those will be the default values.
 
-        path : list[str]
+        path : DSPath
             The location or identification to store the file data under.
             This consists of one or more string values that define a hierarchical location
             for sorting like a file system path, although it is not guaranteed for these to
@@ -127,7 +128,7 @@ class SpecializedFile(pydantic.BaseModel, typing.Generic[OT]):
     def __new__(
         cls, 
         # we need to explicitly mention all the parameters here again to get full intellisense when initializing
-        path: list[str] = None,
+        path: DSPath = None,
         extension: str = "json",
         autosave: bool = True,
         autosave_interval: float = 5,
@@ -149,7 +150,7 @@ def specialized_file(model_type: type[OT]) -> type[SpecializedFile[OT]]:
 # decorator used with arguments, target class not passed and instead the function needs to return the actual decorator
 @typing.overload
 def specialized_file(
-    base_path: list[str] = None, 
+    base_path: DSPath = None, 
     extension: str = "json",
     autosave: bool = True,
     autosave_interval: float = 5,
@@ -159,7 +160,7 @@ def specialized_file(
 
 def specialized_file(
     model_type: type[OT] = None, *, 
-    base_path: list[str] = None, 
+    base_path: DSPath = None, 
     extension: str = "json",
     autosave: bool = True,
     autosave_interval: float = 5,
@@ -177,7 +178,7 @@ def specialized_file(
     (except base_path) serve as default values for the specialized 
     file class that is emitted.
 
-    base_path : list[str], optional
+    base_path : DSPath, optional
         A path prefix prepended to the path passed when instantiating
         the resulting specialized file. This can be used to group all files of a type
         in a certain folder. For single-use files this can also specify the full path, 
@@ -275,7 +276,7 @@ def specialized_file(
 
             def __init__(
                 self,
-                path: list[str] = None,
+                path: DSPath = None,
                 extension: str = extension,
                 autosave: bool = autosave,
                 autosave_interval: float = autosave_interval,
@@ -284,7 +285,7 @@ def specialized_file(
 
                 Parameters
                 ----------
-                path : list[str], optional
+                path : DSPath, optional
                     _description_, by default None
                 """
                 # If the path is not provided, use just the base path

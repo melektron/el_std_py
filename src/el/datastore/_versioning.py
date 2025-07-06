@@ -20,7 +20,7 @@ from ._deps import *
 type OriginFormatVersion = None
 
 
-class VersionedBaseModel(pydantic.BaseModel):
+class VersionedModel(pydantic.BaseModel):
     """
     Extension of pydantic.BaseModel that includes functionality to easily define
     migrators to migrate the model from earlier versions of the format 

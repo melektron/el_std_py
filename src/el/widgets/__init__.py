@@ -13,3 +13,4 @@ Additional customtkinter widgets
 
 from .listbox import CTkListbox, OptionEntry
 from .tooltip import CTkToolTip
+from .value_box import ValueBox

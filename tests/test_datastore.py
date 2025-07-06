@@ -20,7 +20,7 @@ import pydantic
 import pydantic_core
 
 from el.datastore import *
-from el.datastore.versioning import VersionedBaseModel
+from el.datastore import VersionedModel
 
 
 _log = logging.getLogger(__name__)
@@ -83,12 +83,12 @@ async def test_attribute_delegation():
     
 async def test_version_migration():
     
-    class MyModelV1(VersionedBaseModel):
+    class MyModelV1(VersionedModel):
         format_version: int = 1
         username: str
         age: int
 
-    class MyModelV2(VersionedBaseModel):
+    class MyModelV2(VersionedModel):
         format_version: int = 2
         name: str
         oldness: int
@@ -101,7 +101,7 @@ async def test_version_migration():
                 oldness=old.age,
             )
     
-    class MyModelV3(VersionedBaseModel):
+    class MyModelV3(VersionedModel):
         format_version: int = 3
         first_name: str
         years_alive: int

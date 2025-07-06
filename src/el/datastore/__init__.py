@@ -14,3 +14,5 @@ the vc0 server
 
 from ._file import File, set_datastore_base_path
 from ._specialized import specialized_file
+from ._versioning import VersionedModel
+from ._savable import SavableModel

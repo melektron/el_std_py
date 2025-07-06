@@ -4,3 +4,5 @@
 - added the ability to change autosave behavior of ```el.datastore``` files and specialized files
 - added the ability to access public  ```el.datastore.File``` attributes on specialized files
 - generalized parameter passing of ```el.datastore.File``` and ```el.datastore.specialized_file```
+- added ```el.widgets.value_box.ValueBox```
+- added module ```el.datastore.savable```

@@ -45,7 +45,7 @@ class File(typing.Generic[MT]):
     # they should all point to the same instance ensuring that the "instances" are "synced" live.
     __all_files__: dict[str, "File"] = weakref.WeakValueDictionary()
 
-    def __new__(cls, path: list[str], model: type[MT], extension: str = "json", *args, **kwargs):
+    def __new__(cls, path: DSPath, model: type[MT], extension: str = "json", *args, **kwargs):
         """
         Creates a new instance of a File if it is is necessary or returns
         a reference to an existing File instance if one pointing to the same path
@@ -75,7 +75,7 @@ class File(typing.Generic[MT]):
         return file
 
     def __init__(self, 
-        path: list[str], 
+        path: DSPath, 
         model: type[MT], 
         extension: str = "json",
         autosave: bool = True,
@@ -89,7 +89,7 @@ class File(typing.Generic[MT]):
 
         Parameters
         ----------
-        path : list[str]
+        path : DSPath
             The location or identification to store the file data under.
             This consists of one or more string values that define a hierarchical location
             for sorting like a file system path, although it is not guaranteed for these to
@@ -240,7 +240,7 @@ class File(typing.Generic[MT]):
         return element
 
     @classmethod
-    def _get_storage_location_from_path(cls, path: list[str], extension: str) -> pathlib.Path:
+    def _get_storage_location_from_path(cls, path: DSPath, extension: str) -> pathlib.Path:
         """
         convert the logical path into an actual storage location. ATM the files
         are stored as regular filesystem files and the path mostly specifies the
