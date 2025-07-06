@@ -74,19 +74,46 @@ class File(typing.Generic[MT]):
         file.__file_already_initialized__ = True
         return file
 
-    def __init__(self, path: list[str], model: type[MT], extension: str = "json") -> None:
+    def __init__(self, 
+        path: list[str], 
+        model: type[MT], 
+        extension: str = "json",
+        autosave: bool = True,
+        autosave_interval: float = 5,
+    ) -> None:
         """
         Creates a datastore file object from a datastore path.
         This path may be interpreted as a file path to determine the
         storage location of the operating system file containing the
         datastore "file" data.
 
-        @param path the location or identification to store the file data under.
-        This consists of one or more string values that define a hierarchical location
-        for sorting like a file system path, although it is not guaranteed for these to
-        determine the actual file system path that the file is stored in. Also, the typical
-        limitations associated with filesystem paths such as no slashes do not exist here.
-        Any string can be used and the implementation will make sure to encode it an a valid way.
+        Parameters
+        ----------
+        path : list[str]
+            The location or identification to store the file data under.
+            This consists of one or more string values that define a hierarchical location
+            for sorting like a file system path, although it is not guaranteed for these to
+            determine the actual file system path that the file is stored in. Also, the typical
+            limitations associated with filesystem paths such as no slashes do not exist here.
+            Any string can be used and the implementation will make sure to encode it an a valid way.
+        model : type[MT]
+            The pydantic Model type describing the structure of the file content.
+        extension : str, optional
+            the file extension to use for the actual file saved on a storage backend
+            if applicable on that backend. By default "json".
+        autosave : bool, optional
+            Whether to initially enable autosave, by default True. Autosave can be disabled/enabled
+            later on using set_autosave().
+        autosave_interval : float, optional
+            Interval between autosaves in seconds. By default 5.
+
+        Raises
+        ------
+        ValueError
+            Datastore path is empty.
+        RuntimeError
+            Datastore path points to an existing directory on the storage backend 
+            which can and should not be replaced by a file automatically.
         """
 
         # if creating reference instance to existing instance we don't need to
@@ -95,12 +122,12 @@ class File(typing.Generic[MT]):
             _log.debug("(same file, no re-init)")
             return
 
-        # the logical path/identification
         self._path = path
-        # the extension to save the file with (if applicable)
-        self._extension = extension
-        # the data model specifying the structure of the file
         self._model_type = model
+        self._extension = extension
+        self._autosave = autosave
+        self._autosave_interval = autosave_interval
+
         # the actual data object reference holding the content
         self._data_content: MT = None
         # copy of above used for comparing to find changes
@@ -155,9 +182,10 @@ class File(typing.Generic[MT]):
         )
 
         # setup save timer to periodically check for changes
-        self._save_timer = IntervalTimer(5)
+        self._save_timer = IntervalTimer(self._autosave_interval)
         self._save_timer.on_interval(self._save_timer_cb, weakref.ref(self))
-        self._save_timer.start()
+        if self._autosave is not None:
+            self._save_timer.start()
 
     @property
     def content(self):
@@ -259,6 +287,16 @@ class File(typing.Generic[MT]):
         self._dump_to_disk()
 
         _log.debug(f"Saved datastore file {self._path}")
+    
+    def set_autosave(self, enabled: bool) -> None:
+        """
+        enable or disable autosave
+        """
+        self._autosave = enabled
+        if enabled:
+            self._save_timer.start()
+        else:
+            self._save_timer.stop()
 
     @staticmethod
     async def _save_timer_cb(weak_self: weakref.ReferenceType["File"]):
@@ -292,5 +330,6 @@ class File(typing.Generic[MT]):
         """
         before deletion save the datastore
         """
-        self._save_timer.stop()
+        if self._autosave_interval is not None:
+            self._save_timer.stop()
         self.save_to_disk()

@@ -75,7 +75,7 @@ class WrappedFile(pydantic.BaseModel, typing.Generic[OT]):
     
     # New method to get the correct class type after instantiation which is the actual
     # data model type
-    def __new__(cls, path: list[str] = None) -> OT:
+    def __new__(cls, *args, **kwargs) -> OT:
         ...
 
 

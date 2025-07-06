@@ -27,3 +27,6 @@ Issues = "https://github.com/melektron/el_std_py/issues"
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
+# https://stackoverflow.com/questions/70015634/how-to-test-async-function-using-pytest
+asyncio_mode="auto"
+asyncio_default_fixture_loop_scope="function"
