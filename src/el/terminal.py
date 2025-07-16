@@ -12,6 +12,8 @@ Simple logging setups and async terminal controller to allow
 interactive CLI while using logging.
 """
 
+from el.errors import SetupError
+
 import sys
 import atexit
 if sys.platform != "win32":
@@ -24,11 +26,15 @@ else:
     import threading
     import msvcrt
     import os
-    import colorama
+
+    try:
+        import colorama
+    except ImportError:
+        raise SetupError("el.terminal requires colorama on Windows. Please install it before using el.terminal.")
+        #raise SetupError("el.widgets requires customtkinter and pillow (PIL). Please install them before using el.widgets.")
 import asyncio
 import logging
 import typing
-from el.errors import SetupError
 
 
 BLUE    = '\033[94m'
