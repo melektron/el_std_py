@@ -83,36 +83,57 @@ class TerminalController(logging.Handler):
     and above flowing log output
     """
 
-    def __init__(self):
+    def __init__(self, interactive: bool = True):
         """
         Creates a terminal controller that will manage terminal in raw mode to provide
         a CLI while allowing output to be printed above.
+
+        Parameters
+        ----------
+        interactive : bool, optional
+            Whether the interactive stdin terminal should be enabled, by default True.
+            Disabling this will run the application in "daemon mode" where the prompt
+            is disabled (nicer log output) and stdin is not required (necessary when running 
+            via .desktop entry). This may be required when stdio is not connected to a tty. 
+            When stdin is connected to a non-tty, this is disabled automatically.
         """
 
         super().__init__()
 
-        self._fd = sys.stdin.fileno()
+        self._interactive = interactive
 
-        if sys.platform != "win32":
-            # put terminal into raw mode
-            self._old_settings = termios.tcgetattr(self._fd)
-            # enable direct control but still allows Ctrl+C and similar to work as expected
-            tty.setcbreak(self._fd)
-        else:
-            #msvcrt.setmode(self._fd, os.O_BINARY)
-            set_cbreak_mode_windows()
-            colorama.just_fix_windows_console()     # enables coloring on windows in every situation
-            self._win_input_queue = queue.Queue()   # queue to transfer input from thread
+        if self._interactive:
+            try:
+                # test if we are connected to a tty. If we are not,
+                # we disable interactivity regardless of the argument value
+                self._interactive = sys.stdin.isatty()
+            except Exception:
+                # if stdin is not available, we also disable interactivity
+                self._interactive = False
 
-        # make sure the terminal is restored, even when crashing
-        atexit.register(self._restore_settings)
+        if self._interactive:
+            self._fd = sys.stdin.fileno()
+
+            if sys.platform != "win32":
+                # put terminal into raw mode
+                self._old_settings = termios.tcgetattr(self._fd)
+                # enable direct control but still allows Ctrl+C and similar to work as expected
+                tty.setcbreak(self._fd)
+            else:
+                #msvcrt.setmode(self._fd, os.O_BINARY)
+                set_cbreak_mode_windows()
+                colorama.just_fix_windows_console()     # enables coloring on windows in every situation
+                self._win_input_queue = queue.Queue()   # queue to transfer input from thread
+
+            # make sure the terminal is restored, even when crashing
+            atexit.register(self._restore_settings)
+        
+        self._command_buffer = ""
+        self._prompt = f"{GREY}>>{RESET} "
         
         # flag that is set when loop should exit
         self._exited = False
 
-        self._command_buffer = ""
-        self._prompt = f"{GREY}>>{RESET} "
-    
     async def setup_async_stream(self):
         """
         sets up the async stdin stream to be able to ready using asyncio
@@ -122,6 +143,10 @@ class TerminalController(logging.Handler):
         This is not in __init__ to allow constructing a terminal object globally before 
         an asyncio event loop has been started.
         """
+        # when running in non-interactive mode we likely can't do this
+        if not self._interactive:
+            return
+        
         if sys.platform != "win32":
             loop = asyncio.get_event_loop()
             self._reader = asyncio.StreamReader()
@@ -140,7 +165,7 @@ class TerminalController(logging.Handler):
                 char = msvcrt.getch()
                 self._win_input_queue.put(char)
         
-    async def portable_read_one(self) -> bytes:
+    async def _portable_read_one(self) -> bytes:
         if sys.platform != "win32":
             return await self._reader.readexactly(1)
         else:
@@ -167,10 +192,16 @@ class TerminalController(logging.Handler):
         command is submitted, None is returned
         """
         while not self._exited:
+            # in interactive mode we just do nothing
+            if not self._interactive:
+                await asyncio.sleep(.5)
+                continue
+            
+            # otherwise wait for input and process it
             c: bytes = ...
             try:
                 async with asyncio.timeout(.5):
-                    c = await self.portable_read_one()
+                    c = await self._portable_read_one()
             except TimeoutError:
                 continue
 
@@ -198,11 +229,15 @@ class TerminalController(logging.Handler):
         return None
 
     def _clear_line(self):
-        sys.stdout.write("\033[2K")  # Clear the current line
-        sys.stdout.write("\033[1G")  # Move the cursor to the beginning of the line
+        # in non interactive mode, there is no prompt and no clearing
+        if self._interactive:
+            sys.stdout.write("\033[2K")  # Clear the current line
+            sys.stdout.write("\033[1G")  # Move the cursor to the beginning of the line
 
     def _reprint_command_line(self) -> None:
-        sys.stdout.write(self._prompt + self._command_buffer)
+        # in non interactive mode, there is no prompt and no clearing
+        if self._interactive:
+            sys.stdout.write(self._prompt + self._command_buffer)
     
     def print(self, log: str | typing.Any, color: str | None = None) -> None:
         """
@@ -255,8 +290,10 @@ def setup_simple_logging(level: LogLevel = logging.INFO) -> None:
     and stream output handler that is a good baseline for most 
     non-interactive applications.
 
-    Params:
-        _level: The default logging level for the root logger
+    Parameters
+    ----------
+    level : LogLevel, optional
+        Global log level, by default INFO.
     """
     log = logging.getLogger()
     log.setLevel(level)
@@ -270,14 +307,25 @@ def setup_simple_logging(level: LogLevel = logging.INFO) -> None:
     log.addHandler(ch)
 
 
-def setup_simple_terminal(level: LogLevel = logging.INFO) -> TerminalController:
+def setup_simple_terminal(
+    level: LogLevel = logging.INFO, 
+    interactive: bool = True
+) -> TerminalController:
     """
     Configures the python logging library with a simple formatter
     and am async terminal controller as the output to allow interactive commands
     while using logging.
 
-    Params:
-        _level: The default logging level for the root logger
+    Parameters
+    ----------
+    level : LogLevel, optional
+        Global log level, by default INFO.
+    interactive : bool, optional
+        Whether the interactive stdin terminal should be enabled, by default True.
+        Disabling this will run the application in "daemon mode" where the prompt
+        is disabled (nicer log output) and stdin is not required (necessary when running 
+        via .desktop entry). This may be required when stdio is not connected to a tty. 
+        When stdin is connected to a non-tty, this is disabled automatically.
 
     Returns: terminal controller
     """
@@ -285,7 +333,7 @@ def setup_simple_terminal(level: LogLevel = logging.INFO) -> TerminalController:
     log = logging.getLogger()
     log.setLevel(level)
 
-    term = TerminalController()
+    term = TerminalController(interactive=interactive)
     term.setLevel(logging.DEBUG)    # show everything if enabled
     
     formatter = ColoredFormatter()
