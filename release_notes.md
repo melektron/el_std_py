@@ -6,3 +6,4 @@
 - generalized parameter passing of ```el.datastore.File``` and ```el.datastore.specialized_file```
 - added ```el.widgets.value_box.ValueBox```
 - added module ```el.datastore.savable```
+- added module `nixos_ctk_font_fix`
