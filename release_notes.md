@@ -6,6 +6,7 @@
 - generalized parameter passing of ```el.datastore.File``` and ```el.datastore.specialized_file```
 - added ```el.widgets.value_box.ValueBox```
 - added module ```el.datastore.savable```
-- added module `nixos_ctk_font_fix`
+- added module `el.nixos_ctk_font_fix`
 - added support for connecting `el.terminal.TerminalController` to non-ttys. 
   - Interactivity (prompt, command handling) will now automatically be disabled when connecting stdin to a non-tty (e.g. when using .desktop files or cron jobs) instead of the application crashing.
+- added module `el.tkml`: Tkinter wrappers to build UIs more easily using a declarative ish "markup language" using context managers

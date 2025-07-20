@@ -8,7 +8,10 @@ All rights reserved.
 This source code is licensed under the Apache-2.0 license found in the
 LICENSE file in the root directory of this source tree. 
 
-tests for el.datastore
+tests for el.tkml.
+
+Be warned: some wild creatures are lurking in this file:
+  Tests with GUI windows.
 """
 
 import pytest
@@ -16,35 +19,121 @@ import typing
 import logging
 import tkinter as tk
 
-from el.tkml.tk_element import tkc
-
+from el.tkml._context import _master_ctx, _grid_next_column_ctx, _grid_next_row_ctx
+from el.tkml.adapters import tkr, tkc, tkl
+from el.tkml.grid import add_column, add_row, next_column, next_row
 
 _log = logging.getLogger(__name__)
 
 
+def test_tkr():
+    with tkr(tk.Tk)(baseName="test") as m:
+        assert _master_ctx.get() is m
+        m.destroy()
+    assert _master_ctx.get() is None
 
 def test_tkc_master_override():
     """
-    Checks that the tke context manager works correctly
+    Checks that the tkc context manager works correctly
+    (when overriding the master or not)
     """
     root = tk.Tk()
-    root.configure(background="green")
-    #root.pack_propagate(0)
-    root.grid_columnconfigure(0, weight=1)
+    #root.configure(background="green")
+    #root.grid_columnconfigure(0, weight=1)
+    assert _master_ctx.get() is None
     with tkc(tk.Frame, root)(background="red") as e:
-        e.grid(
-            column=0, 
-            row=0,
-            padx=10,
-            sticky="ew"
-        )
+        assert _master_ctx.get() is e
+        e.grid(column=0, row=0, padx=10, sticky="ew")
         with tkc(tk.Button)(text="Hello, world!") as b:
-            b.pack(
-                padx=10,
-                pady=10
-            )
-    
-    root.mainloop()
+            assert _master_ctx.get() is b
+            b.pack(padx=10, pady=10)
+        assert _master_ctx.get() is e
+    assert _master_ctx.get() is None
+    #root.mainloop()
+
+def test_tkc_master_missing():
+    """
+    check for ValueError when TKML container is missing
+    a contextual master.
+    """
+    with pytest.raises(ValueError) as exec_info:
+        with tkc(tk.Frame)(background="red") as e:
+            e.grid(column=0, row=0, padx=10, sticky="ew")
+
+def test_tkl_master_missing():
+    """
+    check for ValueError when TKML leaf is missing
+    a contextual master.
+    """
+    with pytest.raises(ValueError) as exec_info:
+        assert _master_ctx.get() is None
+        b = tkl(tk.Button)(text="test")
+    assert _master_ctx.get() is None
 
 
+def test_grid_by_columns():
+    """
+    Tests the grid placement functions by
+    placing in row directions.
+    """
+    assert _grid_next_column_ctx.get() == 0
+    assert _grid_next_row_ctx.get() == 0
+    with tkr(tk.Tk)() as w:
+        assert _grid_next_column_ctx.get() == 0
+        assert _grid_next_row_ctx.get() == 0
+        b1 = add_row(tkl(tk.Button)(text="b1"), sticky="nsew")
+        assert _grid_next_column_ctx.get() == 0
+        assert _grid_next_row_ctx.get() == 1
+        b2 = add_row(tkl(tk.Button)(text="b2"), sticky="nsew")
+        assert _grid_next_column_ctx.get() == 0
+        assert _grid_next_row_ctx.get() == 2
+        b3 = add_row(tkl(tk.Button)(text="b3"), rowspan=2, sticky="nsew")
+        assert _grid_next_column_ctx.get() == 0
+        assert _grid_next_row_ctx.get() == 4
 
+        next_column()
+        assert _grid_next_column_ctx.get() == 1
+        assert _grid_next_row_ctx.get() == 0
+        b4 = add_row(tkl(tk.Button)(text="b4"), rowspan=2, sticky="nsew")
+        assert _grid_next_column_ctx.get() == 1
+        assert _grid_next_row_ctx.get() == 2
+        b8 = add_row(tkl(tk.Button)(text="b8"), sticky="nsew")
+        assert _grid_next_column_ctx.get() == 1
+        assert _grid_next_row_ctx.get() == 3
+        b5 = add_row(tkl(tk.Button)(text="b5"), sticky="nsew")
+        assert _grid_next_column_ctx.get() == 1
+        assert _grid_next_row_ctx.get() == 4
+
+        next_column(reset_row=False)
+        assert _grid_next_column_ctx.get() == 2
+        assert _grid_next_row_ctx.get() == 4
+        b6 = add_row(tkl(tk.Button)(text="b6"), sticky="nsew")
+        assert _grid_next_column_ctx.get() == 2
+        assert _grid_next_row_ctx.get() == 5
+        b7 = add_row(tkl(tk.Button)(text="b7"), sticky="nsew")
+        assert _grid_next_column_ctx.get() == 2
+        assert _grid_next_row_ctx.get() == 6
+
+        # also test grid-arranging containers
+        # (these create sub grid-contexts but must place
+        # themselves in the parent grid context requires passing a placement function)
+        next_column()
+        assert _grid_next_column_ctx.get() == 3
+        assert _grid_next_row_ctx.get() == 0
+        with tkc(tk.Frame, placement=(lambda e: add_row(e, sticky="nsew")))(
+            background="green"
+        ) as f:
+            assert _grid_next_column_ctx.get() == 0
+            assert _grid_next_row_ctx.get() == 0
+            b9 = add_row(tkl(tk.Button)(text="b9"), sticky="nsew", padx=5, pady=5)
+            assert _grid_next_column_ctx.get() == 0
+            assert _grid_next_row_ctx.get() == 1
+            b10 = add_row(tkl(tk.Button)(text="b10"), sticky="nsew", padx=5, pady=5)
+            assert _grid_next_column_ctx.get() == 0
+            assert _grid_next_row_ctx.get() == 2
+
+        #w.mainloop()
+    assert _grid_next_column_ctx.get() == 0
+    assert _grid_next_row_ctx.get() == 0
+
+# TODO: test for grid layout by row
