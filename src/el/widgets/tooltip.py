@@ -39,6 +39,7 @@ class CTkToolTip(ctk.CTkToplevel):
         border_color: ColorType = None,
         alpha: float = 0.95,
         padding: tuple = (10, 2),
+        disabled: bool | Observable[bool] = False,
         **message_kwargs
     ):
         self._widget = widget
@@ -87,7 +88,7 @@ class CTkToolTip(ctk.CTkToplevel):
         self._padding = padding
         self._bg_color: ColorType = ctk.ThemeManager.theme["CTkFrame"]["fg_color"] if bg_color is None else bg_color
         self._border_color = border_color
-        self._disable = False
+        self._disable = disabled.value if isinstance(disabled, Observable) else disabled
 
         # visibility status of the ToolTip inside|outside|visible
         self._status: Literal["inside", "outside"] = "outside"
@@ -142,6 +143,15 @@ class CTkToolTip(ctk.CTkToplevel):
         self._widget.bind("<Motion>", self._on_enter, add="+")
         self._widget.bind("<B1-Motion>", self._on_enter, add="+")
         self._widget.bind("<Destroy>", lambda _: self.hide(), add="+")
+
+        # add listener for disabled observable if applicable
+        if isinstance(disabled, Observable):
+            def set(v: bool):
+                if v:
+                    self.hide()
+                else:
+                    self.show()
+            disabled >> set
 
     def show(self) -> None:
         """

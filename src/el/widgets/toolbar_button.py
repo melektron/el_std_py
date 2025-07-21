@@ -48,12 +48,12 @@ class ToolbarButton(ctk.CTkButton):
         # round_height_to_even_numbers: bool = True,
         text: str = "",
         # font: Optional[Union[tuple, ctk.CTkFont]] = None,
-        textvariable: Union[tk.Variable, None] = None,
+        textvariable: tk.Variable | None = None,
         tooltip: str | Observable[str] | None = None,
         image: Union[ctk.CTkImage, "ImageTk.PhotoImage", None] = None,
         state: str = "normal",
-        hover: bool = True,
-        command: Union[Callable[[], Any], None] = None,
+        hover: bool | Observable[bool] = True,
+        command: Callable[[], Any] | None = None,
         # compound: str = "left",
         # anchor: str = "center",
         **kwargs
@@ -61,6 +61,7 @@ class ToolbarButton(ctk.CTkButton):
         """
         Configures a button for use in the analysis view toolbar
         """
+
         super().__init__(
             master,
             width=width,
@@ -82,15 +83,61 @@ class ToolbarButton(ctk.CTkButton):
             textvariable=textvariable,
             image=image,
             state=state,
-            hover=hover,
+            hover=hover.value if isinstance(hover, Observable) else hover,
             command=command,
             # compound=compound,
             # anchor=anchor,
             **kwargs
         )
+        
+        # make hover responsive if it's an observable
+        if isinstance(hover, Observable):
+            hover.observe(lambda v: self.configure(hover=v))
 
         if tooltip is not None:
-            self._tooltip = CTkToolTip(self, text=tooltip)
+            self._tooltip = CTkToolTip(
+                self, 
+                text=tooltip,
+                # when hover is false, the tooltip has to be disabled (can be observable)
+                disabled=(not hover) if isinstance(hover, Observable) else (hover >> (lambda v: not v))
+            )
+    
+    @override
+    def _clicked(self, event=None):
+        if self._state != tk.DISABLED:
+
+            # click animation: change color with .on_leave() and back to normal after 100ms with click_animation()
+            # edit by melektron: If hovering is disabled, we invert the animation so click is still visible
+            # (_click_animation is also modified)
+            print("modified click")
+            self._click_animation_running = True
+            if self._hover:
+                self._on_leave()
+            else:
+                self._on_enter()
+            self.after(100, self._click_animation)
+
+            if self._command is not None:
+                self._command()
+    
+    @override
+    def _on_enter(self, event=None):
+        # when the animation is active we enable hover temporarily just enough to
+        # execute the color change once to show the click animation
+        if self._click_animation_running and not self._hover:
+            self._hover = True
+            super()._on_enter(event)
+            self._hover = False
+        else:
+            super()._on_enter(event)
+
+    @override
+    def _click_animation(self):
+        if self._click_animation_running:
+            if self._hover:
+                self._on_enter()
+            else:
+                self._on_leave()
 
     @override
     def _create_grid(self):
