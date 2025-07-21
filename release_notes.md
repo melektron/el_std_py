@@ -10,3 +10,5 @@
 - added support for connecting `el.terminal.TerminalController` to non-ttys. 
   - Interactivity (prompt, command handling) will now automatically be disabled when connecting stdin to a non-tty (e.g. when using .desktop files or cron jobs) instead of the application crashing.
 - added module `el.tkml`: Tkinter wrappers to build UIs more easily using a declarative ish "markup language" using context managers
+- added `el.timers.WDTimer.active` property
+- added `el.observable.filters.throttle` and a new `StatefulFilter` API to implement it and similar time-based filters

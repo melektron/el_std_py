@@ -19,9 +19,10 @@ import typing
 import asyncio
 import functools
 
+type TimerCallback = typing.Callable[[], typing.Coroutine]
 
 class _BaseTimer:
-    def _run_callback(self, cb: typing.Callable | None):
+    def _run_callback(self, cb: TimerCallback | None):
         if cb is not None:
             asyncio.create_task(cb())
 
@@ -40,10 +41,10 @@ class WDTimer(_BaseTimer):
         """
         self._timeout: float = timeout
         self._timer_task: asyncio.Task = None
-        self._on_timeout_cb: typing.Callable = None
-        self._on_restart_cb: typing.Callable = None
+        self._on_timeout_cb: TimerCallback = None
+        self._on_restart_cb: TimerCallback = None
 
-    def on_timeout(self, cb: typing.Callable):
+    def on_timeout(self, cb: TimerCallback):
         """
         Registers a callback handler (must be async) for the timeout event
         (aka. when the timer isn't refreshed before the timeout time.)
@@ -55,7 +56,7 @@ class WDTimer(_BaseTimer):
 
         return self
 
-    def on_restart(self, cb: typing.Callable):
+    def on_restart(self, cb: TimerCallback):
         """
         Registers a callback handler (must be async) for the restart event
         (aka. when the timer restarts counting after a timeout or
@@ -94,6 +95,14 @@ class WDTimer(_BaseTimer):
         
         return self
 
+    @property
+    def active(self) -> bool:
+        """
+        whether the timer is currently actively counting
+        or not (because it has timed out or hasn't been started)
+        """
+        return self._timer_task is not None and not self._timer_task.done()
+
     async def _timer_fn(self):
         await asyncio.sleep(self._timeout)
         self._run_callback(self._on_timeout_cb)
@@ -115,9 +124,9 @@ class IntervalTimer(_BaseTimer):
         """
         self._period: float = period
         self._timer_task: asyncio.Task = None
-        self._on_interval_cb: typing.Callable = None
+        self._on_interval_cb: TimerCallback = None
 
-    def on_interval(self, cb: typing.Callable, *args, **kwargs):
+    def on_interval(self, cb: TimerCallback, *args, **kwargs):
         """
         Registers a callback handler (must be async) for the timer interval event.
 

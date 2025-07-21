@@ -12,7 +12,10 @@ Common filter and transform functions for observables
 """
 
 import typing
-from ._observable import Observable, ObserverFunction
+import time
+
+from el.timers import WDTimer
+from ._observable import Observable, ObserverFunction, StatefulFilter
 
 def if_true[T](v: T) -> T:
     """
@@ -41,3 +44,90 @@ def call_if_true(c: typing.Callable) -> ObserverFunction[typing.Any, None]:
         if bool(v) == True:
             c()
     return obs
+
+
+class throttle[T](StatefulFilter[T, T]):
+    @typing.overload
+    def __init__(self, *, hz: float, postpone_updates: bool = True):
+        """
+        Throttles the update rate to a maximum of `hz` Hz.
+        
+        Quick bursts of updates will not be propagated
+        immediately, instead being postponed and propagated 
+        as one cumulative update after the minimum interval according
+        to the configured maximum frequency. This is to prevent permanent 
+        steady-state error after a burst of quick updates. 
+        This behavior requires an active asyncio event loop 
+        to dispatch the postponed settled values. Set `postpone_updates` to 
+        False to disable this behavior.
+        """
+    
+    @typing.overload
+    def __init__(self, *, interval: float, postpone_updates: bool = True):
+        """
+        Throttles the update rate to a minimum of `interval` seconds
+        between updates.
+        
+        Quick bursts of updates will not be propagated
+        immediately, instead being postponed and propagated 
+        as one cumulative update after the minimum interval.
+        This is to prevent permanent steady-state error 
+        after a burst of quick updates. 
+        This behavior requires an active asyncio event loop 
+        to dispatch the postponed settled values. Set `postpone_updates` to 
+        False to disable this behavior.
+        """
+    
+    def __init__(
+        self, *,
+        hz: float | None = None, 
+        interval: float | None = None,
+        postpone_updates: bool = True,
+    ):
+        if hz is None and interval is not None:
+            self._interval = interval
+        elif interval is None and hz is not None:
+            self._interval = 1 / hz
+        else:
+            raise ValueError("Either max. update rate (hz) or min. interval (interval) must be passed to throttle()")
+
+        if postpone_updates:
+            self._update_timer = WDTimer(self._interval)
+            self._update_timer.on_timeout(self._on_timeout)
+            self._last_update_time = None
+        else:
+            self._update_timer = None
+            self._last_update_time = 0
+
+    @typing.override
+    def _connect(self, src, dst):
+        self._src_obs = src
+        self._dst_obs = dst
+
+    @typing.override
+    def __call__[CT](self, v: CT) -> CT:
+
+        # non-postponing mode
+        if self._last_update_time is not None:
+            if time.time() > (self._last_update_time + self._interval):
+                self._last_update_time = time.time()
+                return v    # propagate update
+            else:
+                return ...  # inhibit update
+        # non-postponing mode
+        elif self._update_timer is not None:
+            # if the timer is not active we propagate immediately,
+            # otherwise we wait for timeout to propagate cumulative update
+            if not self._update_timer.active:
+                self._update_timer.refresh()
+                return v    # propagate update
+            else:
+                return ...  # inhibit update
+
+    async def _on_timeout(self) -> None:
+        if self._src_obs.value != self._dst_obs.value:
+            # propagate a postponed cumulative update
+            # if the value has changed
+            self._dst_obs.value = self._src_obs.value
+            # and go into another throttle delay
+            self._update_timer.refresh()

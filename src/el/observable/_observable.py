@@ -11,6 +11,7 @@ LICENSE file in the root directory of this source tree.
 Observable class whose changes can be tracked
 """
 
+import abc
 import typing 
 import logging
 
@@ -20,6 +21,46 @@ _log = logging.getLogger(__name__)
 T = typing.TypeVar("T")
 R = typing.TypeVar("R")
 ObserverFunction = typing.Callable[[T], R]
+
+
+class StatefulFilter[T, R](abc.ABC):
+    @abc.abstractmethod
+    def _connect(self, src: "Observable[T]", dst: "Observable[R]"):
+        """
+        Method that is called when a stateful filter instance
+        is connected to an observable chain. The filter
+        is given a direct reference to both the source observable 
+        (the one whose change triggers a `__call__` on the filter)
+        as well as the destination observable (the one that is
+        assigned if `__call__` returns a value), so it can autonomously
+        and asynchronously trigger value updates in the chain without
+        requiring an update from the source observable. This is useful
+        for time-based filters (delay, throttle, ...).
+
+        This is guaranteed to be called before the filter is
+        ever invoked.
+        """
+        ...
+
+    @abc.abstractmethod
+    def __call__(self, v: T) -> R:
+        """
+        the instance is called to notify it of a source update.
+        v is the new source value. The function may return a value
+        to trigger an update on the destination or return `...` (ellipsis)
+        to inhibit the update and possibly trigger an update asynchronously 
+        later using the objects passed via `_connect`.
+        
+        NOTE: To get proper type hinting, in observable chains when matching
+        input and return type (T and R), they need to be a generic
+        type argument of the __call__ method, not the class, so do the following
+        in child classes to match input and return type:
+        ```python
+        @typing.override
+        def __call__[CT](self, v: CT) -> CT: ...
+        ```
+        """
+        ...
 
 
 class Observable(typing.Generic[T]):
@@ -131,6 +172,9 @@ class Observable(typing.Generic[T]):
             result = observer(new_value)
             if result is not ...:   # allow for filter functions to ignore values
                 derived_observable.value = result
+        # if the observer is a stateful filter, we must initialize it
+        if isinstance(observer, StatefulFilter):
+            observer._connect(self, derived_observable)
         # if we have a value, already update the observer
         if self._value is not ...:
             observer_wrapper(self._value)
