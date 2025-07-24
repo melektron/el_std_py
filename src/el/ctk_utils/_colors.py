@@ -18,8 +18,8 @@ from ._deps import *
 from el.observable import Observable
 
 
-Color = str | tuple[str, str]
-MaybeObservableColor = Color | Observable[Color]
+type Color = str | tuple[str, str]
+type MaybeObservableColor = Color | Observable[Color]
 
 
 def homogenize_color_types(

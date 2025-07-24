@@ -166,7 +166,7 @@ def tkl[T, R, **P](widget_type: Callable[Concatenate[T, P], R]):
 
 
 @contextmanager
-def tku[T: tk.Widget](master: T, new_grid: bool = True) -> Generator[T, None, None]:
+def tku[T](master: T, new_grid: bool = True):
     """
     context manager that doesn't create a new container widget
     but instead **uses** an existing widget passed to **`master`** as a 

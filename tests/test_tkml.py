@@ -21,7 +21,7 @@ import tkinter as tk
 
 from el.tkml._context import _master_ctx, _grid_next_column_ctx, _grid_next_row_ctx
 from el.tkml.adapters import tkr, tkc, tkl
-from el.tkml.grid import add_column, add_row, next_column, next_row
+from el.tkml.grid import add_column, add_row, next_column, next_row, grid_layout
 
 _log = logging.getLogger(__name__)
 
@@ -136,4 +136,53 @@ def test_grid_by_columns():
     assert _grid_next_column_ctx.get() == 0
     assert _grid_next_row_ctx.get() == 0
 
-# TODO: test for grid layout by row
+# TODO: test for grid by row
+
+
+
+def test_grid_layout():
+    """
+    Tests the grid_layout() placement function.
+    """
+    with tkr(tk.Tk)() as w:
+        b1 = tkl(tk.Button)(text="b1")
+        b1.grid_configure(sticky="nsew")
+        b2 = tkl(tk.Button)(text="b2")
+        b2.grid_configure(sticky="nsew")
+        b3 = tkl(tk.Button)(text="b3")
+        b3.grid_configure(sticky="nsew")
+
+        next_column()
+        b4 = tkl(tk.Button)(text="b4")
+        b4.grid_configure(sticky="nsew")
+        b8 = tkl(tk.Button)(text="b8")
+        b8.grid_configure(sticky="nsew")
+        b5 = tkl(tk.Button)(text="b5")
+        b5.grid_configure(sticky="nsew")
+
+        next_column(reset_row=False)
+        b6 = tkl(tk.Button)(text="b6")
+        b6.grid_configure(sticky="nsew")
+        b7 = tkl(tk.Button)(text="b7")
+        b7.grid_configure(sticky="nsew")
+
+        # also test grid-arranging containers
+        # (these create sub grid-contexts but must place
+        # themselves in the parent grid context requires passing a placement function)
+        next_column()
+        with tkc(tk.Frame)( #placement=(lambda e: add_row(e, sticky="nsew"))
+            background="green"
+        ) as f:
+            frame = f
+            b9 = add_row(tkl(tk.Button)(text="b9"), sticky="nsew", padx=5, pady=5)
+            b10 = add_row(tkl(tk.Button)(text="b10"), sticky="nsew", padx=5, pady=5)
+        
+        grid_layout(
+            (b1,   b4,   None, frame),
+            (b2,   b4,   None, ),
+            (b3,   b8,   None, ),
+            (b3,   b5,   None, ),
+            (None, None, b6    ),
+            (None, None, b7    ),
+        )
+        #w.mainloop()

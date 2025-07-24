@@ -218,4 +218,83 @@ def next_column(
     if reset_row:
         _grid_next_row_ctx.set(0)
 
+
+def grid_layout(
+    *rows: tuple[tk.Widget | None, ...]
+) -> None:
+    """
+    Generates a grid layout for an entire container by calculating grid indices 
+    of widgets from their locations in the provided arrays similar to CSS grid 
+    template areas. 
+
+    Example:
+    ```python
+    a = tkl(...)
+    b = tkl(...)
+    c = tkl(...)
+    d = tkl(...)
+    grid_layout(
+        (a, a, b, c),
+        (d, d, d, c)
+    )
+    ```
+
+    Widgets can span multiple rows and/or columns which will result in their rowspan
+    or columnspan being set. The span areas must be rectangular.
+
+    If additional grid parameters need to be specified for specific widgets, they
+    can be added using the `grid_configure()` method directly (either before
+    or after the `grid_layout()` call, doesn't matter) without passing row/column
+    information to it. 
     
+    This should not be mixed with calls to contextual TKML grid layout functions 
+    such as `add_row()` etc. This layout method does not require any context and 
+    could thus be used in a non-TKML environment as well.
+
+    Parameters
+    ----------
+    *rows : tuple[tk.Widget | None, ...]
+        Lists representing the rows of a grid.
+        `None` represents an empty cell.
+
+    Raises
+    ------
+    ValueError
+        A widget are is not rectangular.
+    """
+
+    widget_positions: dict[tk.Widget, list[tuple[int, int]]] = {}
+    # collect all the positions each widget was placed at
+    for y, row in enumerate(rows):
+        for x, widget in enumerate(row):
+            if widget is None:  # skip empty cells
+                continue
+            if widget not in widget_positions:
+                widget_positions[widget] = []
+            widget_positions[widget].append((x, y))
+    
+    for widget, positions in widget_positions.items():
+        # collect each column and row a widget appeared
+        x_positions: set[int] = set()
+        y_positions: set[int] = set()
+        for position in positions:
+            x_positions.add(position[0])
+            y_positions.add(position[1])
+        # widgets should always be grid positioned in a rectangular pattern,
+        # thus the position should be representable by the x and y ranges
+        x_range = range(min(x_positions), max(x_positions) + 1)
+        y_range = range(min(y_positions), max(y_positions) + 1)
+        # loop through all theoretical positions to ensure they actually
+        # were present in the input set
+        for x in x_range:
+            for y in y_range:
+                if (x, y) not in positions:
+                    raise ValueError(f"Grid area occupied by widget {widget} is not rectangular: cell ({x}, {y}) is not assigned to this widget.")
+        # if all areas are present, the placement is valid and to be executed
+        widget.grid_configure(
+            column=min(x_positions),
+            columnspan=(max(x_positions) - min(x_positions) + 1),
+            row=min(y_positions),
+            rowspan=(max(y_positions) - min(y_positions) + 1)
+        )
+
