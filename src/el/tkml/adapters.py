@@ -163,3 +163,37 @@ def tkl[T, R, **P](widget_type: Callable[Concatenate[T, P], R]):
         return widget_type(master=local_master, *args, **kwargs)
         
     return inner
+
+
+@contextmanager
+def tku[T: tk.Widget](master: T, new_grid: bool = True) -> Generator[T, None, None]:
+    """
+    context manager that doesn't create a new container widget
+    but instead **uses** an existing widget passed to **`master`** as a 
+    TKML container for all it's children. The master is also 
+    yielded to the "as" clause of the context manager.
+
+    Parameters
+    ----------
+    master : tk.Widget
+        Widget to use as the master (container) for the children.
+    new_grid: bool, optional
+        Whether a new grid context should be started for the children.
+        By default true, but can be set to false to keep the grid context
+        of the parent.
+    """
+    # set master for the child elements
+    master_token = _master_ctx.set(master)
+    if new_grid:
+        # new container means new grid layout, so we rest grid context
+        grid_next_column_token = _grid_next_column_ctx.set(0)
+        grid_next_row_token = _grid_next_row_ctx.set(0)
+    try:
+        # run the children
+        yield master
+    finally:
+        # restore previous context
+        _master_ctx.reset(master_token)
+        if new_grid:
+            _grid_next_column_ctx.reset(grid_next_column_token)
+            _grid_next_row_ctx.reset(grid_next_row_token)
