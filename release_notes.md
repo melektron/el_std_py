@@ -12,3 +12,7 @@
 - added module `el.tkml`: Tkinter wrappers to build UIs more easily using a declarative ish "markup language" using context managers
 - added `el.timers.WDTimer.active` property
 - added `el.observable.filters.throttle` and a new `StatefulFilter` API to implement it and similar time-based filters
+- added `el.lifetime`: A system to manage Callback and observable lifetimes using a `LifetimeManager`:
+  - This system currently works for `el.callback_manager.CallbackManager` and `el.observable.Observable`
+  - With this change, `el.callback_manager.CallbackID` has been removed and is to be replaced with `el.lifetime.RegistrationID`
+  - The system is extensible, other registries can be managed as well by implementing `el.lifetime.AbstractRegistry`

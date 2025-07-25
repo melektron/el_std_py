@@ -125,9 +125,12 @@ class throttle[T](StatefulFilter[T, T]):
                 return ...  # inhibit update
 
     async def _on_timeout(self) -> None:
-        if self._src_obs.value != self._dst_obs.value:
-            # propagate a postponed cumulative update
-            # if the value has changed
-            self._dst_obs.value = self._src_obs.value
-            # and go into another throttle delay
-            self._update_timer.refresh()
+        src_obs = self._src_obs()
+        dst_obs = self._dst_obs()
+        if src_obs is not None and dst_obs is not None:
+            if src_obs.value != dst_obs.value:
+                # propagate a postponed cumulative update
+                # if the value has changed
+                dst_obs.value = src_obs.value
+                # and go into another throttle delay
+                self._update_timer.refresh()

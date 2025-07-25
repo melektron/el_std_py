@@ -14,22 +14,24 @@ Observable class whose changes can be tracked
 import abc
 import typing 
 import logging
+from weakref import ref, ReferenceType
+from dataclasses import dataclass
+
+from el.lifetime import RegistrationID, AbstractRegistry
 
 
 _log = logging.getLogger(__name__)
 
-T = typing.TypeVar("T")
-R = typing.TypeVar("R")
-ObserverFunction = typing.Callable[[T], R]
+type ObserverFunction[T, R] = typing.Callable[[T], R]
 
 
 class StatefulFilter[T, R](abc.ABC):
     @abc.abstractmethod
-    def _connect(self, src: "Observable[T]", dst: "Observable[R]"):
+    def _connect(self, src: ReferenceType["Observable[T]"], dst: ReferenceType["Observable[R]"]) -> None:
         """
         Method that is called when a stateful filter instance
         is connected to an observable chain. The filter
-        is given a direct reference to both the source observable 
+        is given a weak reference to both the source observable 
         (the one whose change triggers a `__call__` on the filter)
         as well as the destination observable (the one that is
         assigned if `__call__` returns a value), so it can autonomously
@@ -37,8 +39,25 @@ class StatefulFilter[T, R](abc.ABC):
         requiring an update from the source observable. This is useful
         for time-based filters (delay, throttle, ...).
 
+        The reference is weak to avoid potential reference circles between
+        the source observable and the StatefulFilter instance.
+        The source observable holds a strong reference to the StatefulFilter,
+        but the same should not be true in the other direction.
+
         This is guaranteed to be called before the filter is
         ever invoked.
+        """
+        ...
+    
+    def _disconnect(self, src: ReferenceType["Observable[T]"], dst: ReferenceType["Observable[R]"]) -> None:
+        """
+        This method is called just before this observer is disconnected
+        from the observer chain of `src` because an observation was terminated
+        using a LifetimeManager. In most cases this method is not required,
+        but it can be overridden to detect such an event and remove any internal 
+        references or clean up resources if applicable. The source
+        and destination observables are passed again which is useful for filters 
+        that take in multiple sources to identify the source that will be disconnected.
         """
         ...
 
@@ -63,13 +82,25 @@ class StatefulFilter[T, R](abc.ABC):
         ...
 
 
-class Observable(typing.Generic[T]):
-    _value: T
-    _observers: list[ObserverFunction[T, typing.Any]]
+@dataclass
+class _ObserverRecord[T]:
+    """
+    Internal representation of an observer
+    """
+    # intermediate receiver function wrapping the derived observable functionality
+    function: ObserverFunction[T, None]
+    # the resulting derived observable object
+    derived: "Observable[T]"
+    # set when the observer is a stateful filter so it can be deactivated
+    stateful_filter: StatefulFilter | None = None
+
+
+class Observable[T](AbstractRegistry):
 
     def __init__(self, initial_value: T = ...):
-        self._value = initial_value
-        self._observers = []
+        self._value: T = initial_value
+        self._observers: dict[RegistrationID, _ObserverRecord[T]] = {}
+        self._next_observer_id: RegistrationID = 0
 
     def receive(self, v: T):
         """
@@ -81,8 +112,8 @@ class Observable(typing.Generic[T]):
         """
         Notifies all observers of the current value
         """
-        for observer in self._observers:
-            observer(self._value)
+        for observer in self._observers.values():
+            observer.function(self._value)
     
     def force_notify(self):
         """
@@ -115,7 +146,7 @@ class Observable(typing.Generic[T]):
             self._value = v
             self._notify()
 
-    def observe(self, observer: ObserverFunction[T, R]) -> "Observable[R]":
+    def observe[R](self, observer: ObserverFunction[T, R]) -> "Observable[R]":
         """
         Adds a new observer function to the observable.
         This acts exactly the same as the ">>" operator and is intended
@@ -124,7 +155,7 @@ class Observable(typing.Generic[T]):
         """
         return self >> observer
 
-    def __rshift__(self, observer: ObserverFunction[T, R]) -> "Observable[R]":
+    def __rshift__[R](self, observer: ObserverFunction[T, R]) -> "Observable[R]":
         """
         Adds a new observer function to the observable.
 
@@ -165,6 +196,7 @@ class Observable(typing.Generic[T]):
         """
         if not callable(observer):
             raise TypeError(f"Observer must be of callable type 'ObserverFunction', not '{type(observer)}'")
+        
         # create a derived observable
         derived_observable = Observable[R]()
         # create a function to pass the return value of of the observer to the new observable
@@ -172,14 +204,26 @@ class Observable(typing.Generic[T]):
             result = observer(new_value)
             if result is not ...:   # allow for filter functions to ignore values
                 derived_observable.value = result
+        
         # if the observer is a stateful filter, we must initialize it
+        is_stateful_filter = False
         if isinstance(observer, StatefulFilter):
-            observer._connect(self, derived_observable)
+            is_stateful_filter = True
+            observer._connect(ref(self), ref(derived_observable))
+        
         # if we have a value, already update the observer
         if self._value is not ...:
             observer_wrapper(self._value)
-        # save the observer
-        self._observers.append(observer_wrapper)
+        
+        # save the observer and notify Abstract Registry to allow lifetime usage
+        self._observers[self._next_observer_id] = _ObserverRecord[T](
+            function=observer_wrapper,
+            derived=derived_observable,
+            stateful_filter=observer if is_stateful_filter else None
+        )
+        self._ar_register(self._next_observer_id)
+        self._next_observer_id += 1
+         
         # return the derived observable for chaining
         return derived_observable
     
@@ -193,6 +237,17 @@ class Observable(typing.Generic[T]):
         if observable is self:
             raise RecursionError("Observable cannot observe itself")
         observable >> self.receive
+    
+    @typing.override
+    def _ar_unregister(self, id: RegistrationID):
+        """
+        Implement unregistering to allow for lifetime management.
+        """
+        if id in self._observers:
+            observer = self._observers[id]
+            if observer.stateful_filter is not None:
+                observer.stateful_filter._disconnect(ref(self), ref(observer.derived))
+            del self._observers[id]
 
 
 ComposedObserverFunction = typing.Callable[[tuple[any]], None]

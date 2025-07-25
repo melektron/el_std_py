@@ -19,6 +19,7 @@ import asyncio
 
 from el.observable import Observable
 from el.observable.filters import *
+from el.lifetime import LifetimeManager
 
 _log = logging.getLogger(__name__)
 
@@ -283,3 +284,120 @@ async def test_throttle_hz():
 async def test_throttle_interval():
     await throttle_timing_check(throttle(interval=0.1))
     throttle_timing_check_no_postpone(throttle(interval=0.1, postpone_updates=False))
+
+
+def test_lifetime():
+    """
+    This test ensures that observers are properly disconnected when lifetime ends
+    """
+    lifetime = LifetimeManager()
+    obs = Observable[int](0)
+    observer_result = ...
+    def observer(v: int):
+        nonlocal observer_result
+        observer_result = v
+    
+    with lifetime():
+        obs >> observer
+    
+    assert obs.value == 0
+    assert observer_result == 0, "must be changed by initial update"
+    obs.value = 2
+    assert obs.value == 2
+    assert observer_result == 2, "still alive, should update"
+    lifetime.end()
+    obs.value = 3
+    assert obs.value == 3
+    assert observer_result == 2, "lifetime ended, should no longer update"
+
+def test_lifetime_releases_ref():
+    """
+    This test ensures that all observer references are kept alive
+    by the observable and that they are released when the lifetime ends
+    """
+    lifetime = LifetimeManager()
+    obs = Observable[int](0)
+    observer_result: int = ...
+    deleted = False
+
+    class Consumer:
+        def __init__(self) -> None:
+            obs >> self.observer
+        def observer(self, v: int) -> None:
+            nonlocal observer_result
+            observer_result = v
+        def __del__(self) -> None:
+            nonlocal deleted
+            deleted = True
+    
+    def sub_scope():
+        with lifetime():
+            consumer = Consumer()
+        # explicit delete because GC can be inconsistent
+        del consumer
+    
+    sub_scope()
+    assert observer_result == 0, "must be changed by initial update"
+    obs.value = 2
+    assert observer_result == 2, "still alive, should update"
+    assert deleted == False, "lifetime not ended, observable should hold reference"
+
+    lifetime.end()
+    assert deleted == True, "lifetime ended, observer object should be released"
+    obs.value = 3
+    assert observer_result == 2, "lifetime ended, should no longer update"
+
+def test_lifetime_disconnects_filters():
+    """
+    This test ensures that StatefulFilters are `_disconnect()`ed when
+    the lifetime ends
+    """
+    lifetime = LifetimeManager()
+    obs = Observable[int](0)
+    observer_result: int = ...
+    disconnected = False
+    deleted = False
+
+    class MockFilter(StatefulFilter[int, int]):
+        def __init__(self) -> None:
+            ...
+        
+        @typing.override
+        def _connect(self, src, dst):
+            self._src_obs = src
+            self._dst_obs = dst
+        
+        @typing.override
+        def _disconnect(self, src, dst):
+            nonlocal disconnected
+            disconnected = True
+            assert src is self._src_obs, "should be the same as during connection" 
+            assert dst is self._dst_obs, "should be the same as during connection"
+
+        @typing.override
+        def __call__(self, v: int) -> int:
+            return v
+        
+        def __del__(self) -> None:
+            nonlocal deleted
+            deleted = True
+
+    def observer(v: int):
+        nonlocal observer_result
+        observer_result = v
+    
+    with lifetime():
+        obs >> MockFilter() >> observer
+    
+    assert observer_result == 0, "must be changed by initial update"
+    obs.value = 2
+    assert observer_result == 2, "still alive, should update"
+    assert disconnected == False, "lifetime not ended, filter should still be connected"
+    assert deleted == False, "lifetime not ended, observable should hold reference"
+
+    lifetime.end()
+    assert disconnected == True, "should have been disconnected"
+    assert deleted == True, "lifetime ended, references gone, filter should have been deleted"
+    obs.value = 3
+    assert observer_result == 2, "lifetime ended, should no longer update"
+

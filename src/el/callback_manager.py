@@ -13,28 +13,29 @@ reinventing the wheel every time
 """
 
 import inspect
-from typing import Generic, Callable, ParamSpec
+from typing import Callable, override
 from weakref import WeakMethod, ref, ReferenceType
+from el.lifetime import AbstractRegistry, RegistrationID
 
 
-CallbackID = int
-_id_counter = 0
+# deprecated! -> should be replaced by el.lifetime.RegistrationID
+type CallbackID = RegistrationID
+_id_counter: RegistrationID = 0
 
-P = ParamSpec("P")
 
-class CallbackManager(Generic[P]):
+class CallbackManager[**P](AbstractRegistry):
     def __init__(self, weak_by_default: bool = True):
         self._weak_by_default = weak_by_default
-        self._callbacks: dict[CallbackID, Callable[P, None] | ReferenceType[Callable[P, None]]] = {}
+        self._callbacks: dict[RegistrationID, Callable[P, None] | ReferenceType[Callable[P, None]]] = {}
     
-    def register(self, cb: Callable[P, None], weak: bool | None = None) -> CallbackID:
+    def register(self, cb: Callable[P, None], weak: bool | None = None) -> RegistrationID:
         """
         Registers a new callback to the callback manager. If 'weak' is set to 
         true, the callback will only be referenced weakly. If set to false, it will be 
         referenced strongly. If left to None, the default will be used according
         to the configuration of the CallbackManager instance.
 
-        Returns: CallbackID used to identify and later remove the callback again.
+        Returns: RegistrationID used to identify and later remove the callback again.
         """
         if weak is None:
             weak = self._weak_by_default
@@ -54,9 +55,12 @@ class CallbackManager(Generic[P]):
             else:
                 self._callbacks[cb_id] = ref(cb, finish)
         
-        return _id_counter
+        # register with abstract registry to enable unregistering via LifetimeManager
+        self._ar_register(cb_id)
+
+        return cb_id
     
-    def remove(self, id: CallbackID) -> bool:
+    def remove(self, id: RegistrationID) -> bool:
         """
         Removes a callback by it's id. Returns True if it was removed
         or False if there was no such callback registered.
@@ -66,13 +70,18 @@ class CallbackManager(Generic[P]):
             return True
         else:
             return False
+        
+    @override
+    def _ar_unregister(self, id):
+        # implement _ar_unregister to allow removal via LifetimeManager
+        self.remove(id)
     
     def notify_all(self, *args: P.args, **kwargs: P.kwargs) -> None:
         """
         Calls all the registered callback functions. If lost weak references are found they
         are removed.
         """
-        to_be_removed: list[CallbackID] = []
+        to_be_removed: list[RegistrationID] = []
         for id, cb in self._callbacks.items():
             if isinstance(cb, ReferenceType):
                 actual_cb = cb()
