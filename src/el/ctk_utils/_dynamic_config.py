@@ -70,7 +70,7 @@ def apply_to_config[
     PT
 ](widget: tk.Widget, config_name: ConfigOptionName) -> Callable[[PT], PT]:
     """
-    Creates a function that applies observable values toa tk/ctk config options dynamically.
+    Creates a function that applies observable values to a tk/ctk config option dynamically.
     """
 
     def set_opt(data: PT) -> PT:

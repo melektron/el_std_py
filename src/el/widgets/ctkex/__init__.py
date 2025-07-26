@@ -10,6 +10,8 @@ LICENSE file in the root directory of this source tree.
 
 CTk Widget subclasses with some extended functionality including:
 - touchscreen mode
+- observable support for new values
 """
 
 from ._button_ex import CTkButtonEx, CTkButtonExPassthroughArgs
+from ._segmented_button_ex import CTkSegmentedButtonEx, CTkSegmentedButtonExPassthroughArgs

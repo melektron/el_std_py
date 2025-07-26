@@ -67,6 +67,17 @@ def test_no_initial_update_when_empty():
     assert obs.value == 2
     assert observer_result == 2
 
+def test_no_initial_update_when_disabled():
+    obs = Observable[int](1)
+    observer_result = 5
+    def observer(v: int):
+        nonlocal observer_result
+        observer_result = v
+    
+    obs.observe(observer, initial_update=False)
+    assert obs.value == 1
+    assert observer_result == 5, "must not be changed by initial update because observable was empty"
+
 
 def test_lshift_chaining():
     obs = Observable[int](0)

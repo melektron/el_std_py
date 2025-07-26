@@ -4,6 +4,7 @@ from ._observable import (
     Observable,
     MaybeObservable,
     maybe_observe,
+    maybe_obs_value,
     #ComposedObservable,
     #ComposedObserverFunction,
 )

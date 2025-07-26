@@ -146,18 +146,16 @@ class Observable[T](AbstractRegistry):
             self._value = v
             self._notify()
 
-    def observe[R](self, observer: ObserverFunction[T, R]) -> "Observable[R]":
+    def observe[R](
+        self, 
+        observer: ObserverFunction[T, R],
+        initial_update: bool = True
+    ) -> "Observable[R]":
         """
         Adds a new observer function to the observable.
         This acts exactly the same as the ">>" operator and is intended
         for cases where the usage of such operators is not possible or
         would be confusing.
-        """
-        return self >> observer
-
-    def __rshift__[R](self, observer: ObserverFunction[T, R]) -> "Observable[R]":
-        """
-        Adds a new observer function to the observable.
 
         If the observable already has a value, the observer is called immediately.
 
@@ -167,6 +165,91 @@ class Observable[T](AbstractRegistry):
 
         When a function returns ... (Ellipsis), this is interpreted as "no value" and
         the derived observable is not updated. This can be used to create filter functions.
+
+        Parameters
+        ----------
+        observer : ObserverFunction[T, R]
+            observer function to be called on value change
+        initial_update : bool, optional
+            whether the observer should be called with an initial value immediately
+            upon observation, by default True (which is the same behavior as the
+            >> operator). If the source observable has no value, an initial update
+            will never be emitted.
+        
+        Returns
+        -------
+        Observable[R]
+            The derived observable.
+
+        Raises
+        ------
+        TypeError
+            Invalid observer function passed
+
+        Example
+        -------
+
+        ```python
+        number = Observable[int]()
+        number.observe(lambda v: print(f"number = {v}"))
+        number_times_two = number.observe(lambda v: v * 2 if v != 3 else ...)
+        number_times_two.observe(lambda v: print(f"a) number * 2 = {v}"))
+        # or all in one line
+        number.observe(lambda v: v * 2).observe(lambda v: print(f"b) number * 2 = {v}"))
+        
+        # set the original observable
+        number.value = 5
+        number.value = 3
+        ``` 
+
+        Console output:
+
+        ```
+        number = 5
+        a) number * 2 = 10
+        b) number * 2 = 10
+        number = 3
+        b) number * 2 = 10
+        ```
+        """
+        if not callable(observer):
+            raise TypeError(f"Observer must be of callable type 'ObserverFunction', not '{type(observer)}'")
+        
+        # create a derived observable
+        derived_observable = Observable[R]()
+        # create a function to pass the return value of of the observer to the new observable
+        def observer_wrapper(new_value: T) -> None:
+            result = observer(new_value)
+            if result is not ...:   # allow for filter functions to ignore values
+                derived_observable.value = result
+        
+        # if the observer is a stateful filter, we must initialize it
+        is_stateful_filter = False
+        if isinstance(observer, StatefulFilter):
+            is_stateful_filter = True
+            observer._connect(ref(self), ref(derived_observable))
+        
+        # if we have a value and it isn't disabled, already update the observer
+        # with an initial update
+        if initial_update and self._value is not ...:
+            observer_wrapper(self._value)
+        
+        # save the observer and notify Abstract Registry to allow lifetime usage
+        self._observers[self._next_observer_id] = _ObserverRecord[T](
+            function=observer_wrapper,
+            derived=derived_observable,
+            stateful_filter=observer if is_stateful_filter else None
+        )
+        self._ar_register(self._next_observer_id)
+        self._next_observer_id += 1
+         
+        # return the derived observable for chaining
+        return derived_observable
+
+    def __rshift__[R](self, observer: ObserverFunction[T, R]) -> "Observable[R]":
+        """
+        Adds a new observer function to the observable like `.observe()` but
+        with nicer syntax for chaining.
 
         Example usage:
 
@@ -194,38 +277,7 @@ class Observable[T](AbstractRegistry):
         ```
 
         """
-        if not callable(observer):
-            raise TypeError(f"Observer must be of callable type 'ObserverFunction', not '{type(observer)}'")
-        
-        # create a derived observable
-        derived_observable = Observable[R]()
-        # create a function to pass the return value of of the observer to the new observable
-        def observer_wrapper(new_value: T) -> None:
-            result = observer(new_value)
-            if result is not ...:   # allow for filter functions to ignore values
-                derived_observable.value = result
-        
-        # if the observer is a stateful filter, we must initialize it
-        is_stateful_filter = False
-        if isinstance(observer, StatefulFilter):
-            is_stateful_filter = True
-            observer._connect(ref(self), ref(derived_observable))
-        
-        # if we have a value, already update the observer
-        if self._value is not ...:
-            observer_wrapper(self._value)
-        
-        # save the observer and notify Abstract Registry to allow lifetime usage
-        self._observers[self._next_observer_id] = _ObserverRecord[T](
-            function=observer_wrapper,
-            derived=derived_observable,
-            stateful_filter=observer if is_stateful_filter else None
-        )
-        self._ar_register(self._next_observer_id)
-        self._next_observer_id += 1
-         
-        # return the derived observable for chaining
-        return derived_observable
+        return self.observe(observer)
     
     def __lshift__(self, observable: "Observable"):
         """
@@ -254,14 +306,24 @@ type MaybeObservable[T] = Observable[T] | T
 
 def maybe_observe[T](
     var: MaybeObservable[T],
-    cb: ObserverFunction[T, typing.Any]
+    cb: ObserverFunction[T, typing.Any],
+    initial_update: bool = True
 ) -> bool:
     """
     Allows "observing" a MaybeObservable. If `var` is not
     an observable, `cb` will be called once with the value
     of `var`, otherwise it will observe `var` and be called
-    any time it's value changes (including potentially an 
-    initial value update if applicable)
+    any time it's value changes.
+    
+    Parameters
+    ----------
+    observer : ObserverFunction[T, R]
+        observer function to be called on value change
+    initial_update : bool, optional
+        whether the observer should be called with an initial value immediately
+        upon observation, by default True. 
+        If `var` is not an Observable and `initial_update` is set to False,
+        `cb` will never be called.
 
     Returns
     -------
@@ -270,11 +332,24 @@ def maybe_observe[T](
         False if `var` is not an observable
     """
     if isinstance(var, Observable):
-        var >> cb
+        var.observe(cb, initial_update=initial_update)
         return True
-    else:
+    elif initial_update:
         cb(var)
-        return False
+    return False
+
+def maybe_obs_value[T](var: MaybeObservable[T]) -> T:
+    """
+    Returns
+    -------
+    T
+        Current value of the observable if it was one,
+        or just the input value if not
+    """
+    if isinstance(var, Observable):
+        return var.value
+    else:
+        return var
 
 
 ComposedObserverFunction = typing.Callable[[tuple[any]], None]

@@ -9,13 +9,12 @@ This source code is licensed under the Apache-2.0 license found in the
 LICENSE file in the root directory of this source tree. 
 """
 
-import sys
 import typing
 from .._deps import *
 
-from el.observable import Observable
-from el.widgets import CTkToolTip
+from el.observable import MaybeObservable, maybe_observe, maybe_obs_value
 from el.ctk_utils.types import *
+from el.ctk_utils import apply_to_config
 
 
 class _CTkButtonPassthroughArgs(typing.TypedDict):
@@ -47,17 +46,22 @@ class _CTkButtonPassthroughArgs(typing.TypedDict):
     anchor: AnchorType = "center",
 
 class CTkButtonExPassthroughArgs(_CTkButtonPassthroughArgs):
-    touchscreen_mode: bool = False
+    touchscreen_mode: MaybeObservable[bool] = False
 
 
 class CTkButtonEx(ctk.CTkButton):
 
     def __init__(self,
         master: tk.Misc,
-        touchscreen_mode: bool = False,
+        touchscreen_mode: MaybeObservable[bool] = False,
         **kwargs: typing.Unpack[_CTkButtonPassthroughArgs]
     ):
-        self._touchscreen_mode = touchscreen_mode
+        self._touchscreen_mode = maybe_obs_value(touchscreen_mode)
+        maybe_observe(
+            touchscreen_mode, 
+            apply_to_config(self, "touchscreen_mode"), 
+            initial_update=False,
+        )
         super().__init__(master, **kwargs)
 
 
@@ -114,8 +118,15 @@ class CTkButtonEx(ctk.CTkButton):
         require_redraw=False,
         **kwargs: typing.Unpack[CTkButtonExPassthroughArgs],
     ):
+        """ 
+        Change configuration options dynamically. When changing any
+        MaybeObservable attributes with an Observable, the attribute
+        will only be set once and not observed. This is intended for
+        changing options without Observables.
+        """
         if "touchscreen_mode" in kwargs:
-            self._touchscreen_mode = kwargs.pop("touchscreen_mode")
+            self._touchscreen_mode = maybe_obs_value(kwargs["touchscreen_mode"])
+            kwargs.pop("touchscreen_mode")
             self._set_cursor()
         
         super().configure(require_redraw, **kwargs)
