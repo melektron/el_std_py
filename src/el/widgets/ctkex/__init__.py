@@ -15,3 +15,4 @@ CTk Widget subclasses with some extended functionality including:
 
 from ._button_ex import CTkButtonEx, CTkButtonExPassthroughArgs
 from ._segmented_button_ex import CTkSegmentedButtonEx, CTkSegmentedButtonExPassthroughArgs
+from ._combo_box_ex import CTkComboBoxEx, CTkComboBoxExPassthroughArgs
