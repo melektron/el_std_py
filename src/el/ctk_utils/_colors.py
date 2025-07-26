@@ -13,13 +13,10 @@ them according to the active appearance mode
 """
 
 from typing import Literal, Sequence
-
 from ._deps import *
-from el.observable import Observable
 
-
-type Color = str | tuple[str, str]
-type MaybeObservableColor = Color | Observable[Color]
+from el.observable import Observable, MaybeObservable
+from .types import Color
 
 
 def homogenize_color_types(
@@ -61,7 +58,7 @@ def apply_apm(color: Color, mode: Literal["Light", "Dark"] | None = None) -> str
         case _:
             raise TypeError(f"argument 'color' must be a string or a tuple of two strings")
 
-def apply_apm_observed(color: MaybeObservableColor) -> Observable[str]:
+def apply_apm_observed(color: MaybeObservable[Color]) -> Observable[str]:
     """
     Observable factory that applies the current ctk appearance mode (light or dark)
     to the provided color value, to select the correct color to display. This is 

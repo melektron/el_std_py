@@ -16,3 +16,6 @@
   - This system currently works for `el.callback_manager.CallbackManager` and `el.observable.Observable`
   - With this change, `el.callback_manager.CallbackID` has been removed and is to be replaced with `el.lifetime.RegistrationID`
   - The system is extensible, other registries can be managed as well by implementing `el.lifetime.AbstractRegistry`
+- `el.observable.filter.call_if_true()` now supports a `False` case
+- added `MaybeObservable` type and the accompanying function `maybe_observe` to `el.observable`
+- added module `el.widgets.ctkex`: A collection of CTk Widgets with extended functionality such as touchscreen mode. (Unlike other `el.widgets`, these are not new, specialized widgets, but just regular CTk widgets with some additional functionality)

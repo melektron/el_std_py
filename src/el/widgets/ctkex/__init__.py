@@ -1,0 +1,15 @@
+"""
+ELEKTRON © 2025 - now
+Written by melektron
+www.elektron.work
+26.07.25, 12:32
+All rights reserved.
+
+This source code is licensed under the Apache-2.0 license found in the
+LICENSE file in the root directory of this source tree. 
+
+CTk Widget subclasses with some extended functionality including:
+- touchscreen mode
+"""
+
+from ._button_ex import CTkButtonEx, CTkButtonExPassthroughArgs

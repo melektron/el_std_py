@@ -31,18 +31,29 @@ def if_true[T](v: T) -> T:
     else:
         return ...
     
-def call_if_true(c: typing.Callable) -> ObserverFunction[typing.Any, None]:
+def call_if_true(
+    t: typing.Callable, 
+    f: typing.Callable | None = None
+) -> ObserverFunction[typing.Any, None]:
     """
-    Calls the provided function when the observable changes it's
+    Calls the provided function `t` when the observable changes it's
     value to equal true when converted to bool.
     ```python 
     bool(v) == True 
     ```
-    Value changes that do not meet this requirement are ignored
+    If the optional `f` argument is provided, it is called when
+    the value changes to equal false:
+    ```python
+    bool(v) == False
+    ```
+    If `f` is not provided, such value changes are ignored.
     """
     def obs(v: typing.Any) -> None:
         if bool(v) == True:
-            c()
+            t()
+        else:
+            if f is not None:
+                f()
     return obs
 
 

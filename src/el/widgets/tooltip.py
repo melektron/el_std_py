@@ -15,7 +15,7 @@ import sys
 import time
 from ._deps import *
 from typing import Literal
-from el.observable import Observable
+from el.observable import Observable, MaybeObservable, maybe_observe
 
 ColorType = str | list[str] | tuple[str, str]
 
@@ -27,8 +27,8 @@ class CTkToolTip(ctk.CTkToplevel):
 
     def __init__(
         self,
-        widget: tk.BaseWidget = None,
-        text: str | Observable[str] = None,
+        widget: tk.BaseWidget,
+        text: MaybeObservable[str],
         delay: float = 0.2,
         follow: bool = True,
         x_offset: int = +20,
@@ -39,7 +39,7 @@ class CTkToolTip(ctk.CTkToplevel):
         border_color: ColorType = None,
         alpha: float = 0.95,
         padding: tuple = (10, 2),
-        disabled: bool | Observable[bool] = False,
+        disabled: MaybeObservable[bool] = False,
         **message_kwargs
     ):
         self._widget = widget
@@ -71,12 +71,7 @@ class CTkToolTip(ctk.CTkToplevel):
 
         # StringVar instance for msg string
         self.message_var = ctk.StringVar()
-        # Observe text if it is an observable
-        if isinstance(text, Observable):
-            text >> self.message_var.set
-        # otherwise just take the text
-        else:
-            self.message_var.set(text)
+        maybe_observe(text, self.message_var.set)
 
         self._delay = delay
         self._follow = follow
@@ -145,13 +140,12 @@ class CTkToolTip(ctk.CTkToplevel):
         self._widget.bind("<Destroy>", lambda _: self.hide(), add="+")
 
         # add listener for disabled observable if applicable
-        if isinstance(disabled, Observable):
-            def set(v: bool):
-                if v:
-                    self.hide()
-                else:
-                    self.show()
-            disabled >> set
+        def set_disabled(v: bool):
+            if v:
+                self.hide()
+            else:
+                self.show()
+        maybe_observe(disabled, set_disabled)
 
     def show(self) -> None:
         """

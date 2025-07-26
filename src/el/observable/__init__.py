@@ -1,6 +1,9 @@
 from ._observable import (
-    Observable,
-    ComposedObservable,
-    ComposedObserverFunction,
     ObserverFunction,
+    StatefulFilter,
+    Observable,
+    MaybeObservable,
+    maybe_observe,
+    #ComposedObservable,
+    #ComposedObserverFunction,
 )

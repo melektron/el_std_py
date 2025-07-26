@@ -250,6 +250,33 @@ class Observable[T](AbstractRegistry):
             del self._observers[id]
 
 
+type MaybeObservable[T] = Observable[T] | T
+
+def maybe_observe[T](
+    var: MaybeObservable[T],
+    cb: ObserverFunction[T, typing.Any]
+) -> bool:
+    """
+    Allows "observing" a MaybeObservable. If `var` is not
+    an observable, `cb` will be called once with the value
+    of `var`, otherwise it will observe `var` and be called
+    any time it's value changes (including potentially an 
+    initial value update if applicable)
+
+    Returns
+    -------
+    bool
+        True if `var` is an observable,
+        False if `var` is not an observable
+    """
+    if isinstance(var, Observable):
+        var >> cb
+        return True
+    else:
+        cb(var)
+        return False
+
+
 ComposedObserverFunction = typing.Callable[[tuple[any]], None]
 
 class ComposedObservable:

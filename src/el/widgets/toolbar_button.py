@@ -9,10 +9,10 @@ LICENSE file in the root directory of this source tree.
 
 Modified CTkButton for tool actions in a toolbar. This button has loosened
 border restrictions, allowing for button icons to be more tightly spaced in
-square button.
+square button. It additionally has a builtin tooltip support.
 """
 
-from typing import override, Any, Union, Callable
+import typing
 
 from ._deps import *
 try:
@@ -21,125 +21,64 @@ except ImportError:
     raise SetupError("el.widgets.toolbar_button requires pillow (PIL). Please install it before using el.widgets.toolbar_button.")
     #raise SetupError("el.widgets requires customtkinter and pillow (PIL). Please install them before using el.widgets.")
     
-from el.observable import Observable
-from el.widgets import CTkToolTip
+from el.observable import Observable, MaybeObservable
+from el.widgets import CTkToolTip, ctkex
 
 
-class ToolbarButton(ctk.CTkButton):
+class ToolbarButton(ctkex.CTkButtonEx):
 
     def __init__(
         self,
-        master: Any,
-        width: int = 32,  # changed default to 36
-        height: int = 32,
-        # corner_radius: Optional[int] = None,
-        # border_width: Optional[int] = None,
-        border_spacing: int = 3,  # changed default to 3 from
-        # bg_color: Union[str, Tuple[str, str]] = "transparent",
-        # fg_color: Optional[Union[str, Tuple[str, str]]] = None,
-        # hover_color: Optional[Union[str, Tuple[str, str]]] = None,
-        # border_color: Optional[Union[str, Tuple[str, str]]] = None,
-        # text_color: Optional[Union[str, Tuple[str, str]]] = None,
-        # text_color_disabled: Optional[Union[str, Tuple[str, str]]] = None,
-        # background_corner_colors: Union[
-        #    Tuple[Union[str, Tuple[str, str]]], None
-        # ] = None,
-        # round_width_to_even_numbers: bool = True,
-        # round_height_to_even_numbers: bool = True,
-        text: str = "",
-        # font: Optional[Union[tuple, ctk.CTkFont]] = None,
-        textvariable: tk.Variable | None = None,
-        tooltip: str | Observable[str] | None = None,
-        image: Union[ctk.CTkImage, "ImageTk.PhotoImage", None] = None,
-        state: str = "normal",
-        hover: bool | Observable[bool] = True,
-        command: Callable[[], Any] | None = None,
-        # compound: str = "left",
-        # anchor: str = "center",
-        **kwargs
+        master: tk.Misc,
+        width: int = 32,            # changed default to 32
+        height: int = 32,           # changed default to 32
+        border_spacing: int = 3,    # changed default to 3
+        text: str = "",             # changed default to empty
+        tooltip: MaybeObservable[str] | None = None,
+        **kwargs: typing.Unpack[ctkex.CTkButtonExPassthroughArgs]
     ):
         """
-        Configures a button for use in the analysis view toolbar
+        Modified CTkButtonEx for tool actions in a toolbar. This button has loosened
+        border restrictions, allowing for button icons to be more tightly spaced in
+        square button. It additionally has a builtin tooltip support and some
+        modified defaults for this application.
+
+        Parameters
+        ----------
+        master : tk.Misc
+            _description_
+        width, height : int, optional
+            with and height, by default 32
+        border_spacing : int, optional
+            border spacing which as by default been increased to 3, 
+            which is required to prevent square image from peeking out the corners by default
+            due to the reduced sideways restrictions.
+        text : str, optional
+            text to show, by default empty as it is expected that an image is used
+        tooltip : MaybeObservable[str], optional
+            text to show in a tooltip or none to disable tooltip (is also disabled in touchscreen mode)
+            Can be an observable.
         """
 
         super().__init__(
             master,
             width=width,
             height=height,
-            # corner_radius=corner_radius,
-            # border_width=border_width,
             border_spacing=border_spacing,
-            # bg_color=bg_color,
-            # fg_color=fg_color,
-            # hover_color=hover_color,
-            # border_color=border_color,
-            # text_color=text_color,
-            # text_color_disabled=text_color_disabled,
-            # background_corner_colors=background_corner_colors,
-            # round_width_to_even_numbers=round_width_to_even_numbers,
-            # round_height_to_even_numbers=round_height_to_even_numbers,
             text=text,
-            # font=font,
-            textvariable=textvariable,
-            image=image,
-            state=state,
-            hover=hover.value if isinstance(hover, Observable) else hover,
-            command=command,
-            # compound=compound,
-            # anchor=anchor,
             **kwargs
         )
         
-        # make hover responsive if it's an observable
-        if isinstance(hover, Observable):
-            hover.observe(lambda v: self.configure(hover=v))
-
         if tooltip is not None:
             self._tooltip = CTkToolTip(
                 self, 
                 text=tooltip,
-                # when hover is false, the tooltip has to be disabled (can be observable)
-                disabled=(not hover) if isinstance(hover, Observable) else (hover >> (lambda v: not v))
+                disabled=("touchscreen_mode" in kwargs and kwargs["touchscreen_mode"])  # disabled in touchscreen mode
             )
-    
-    @override
-    def _clicked(self, event=None):
-        if self._state != tk.DISABLED:
-
-            # click animation: change color with .on_leave() and back to normal after 100ms with click_animation()
-            # edit by melektron: If hovering is disabled, we invert the animation so click is still visible
-            # (_click_animation is also modified)
-            print("modified click")
-            self._click_animation_running = True
-            if self._hover:
-                self._on_leave()
-            else:
-                self._on_enter()
-            self.after(100, self._click_animation)
-
-            if self._command is not None:
-                self._command()
-    
-    @override
-    def _on_enter(self, event=None):
-        # when the animation is active we enable hover temporarily just enough to
-        # execute the color change once to show the click animation
-        if self._click_animation_running and not self._hover:
-            self._hover = True
-            super()._on_enter(event)
-            self._hover = False
         else:
-            super()._on_enter(event)
-
-    @override
-    def _click_animation(self):
-        if self._click_animation_running:
-            if self._hover:
-                self._on_enter()
-            else:
-                self._on_leave()
-
-    @override
+            self._tooltip = None
+    
+    @typing.override
     def _create_grid(self):
         """
         Modified version of regular _create_grid. This version removes

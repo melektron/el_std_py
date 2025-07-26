@@ -12,8 +12,6 @@ CTk applications.
 """
 
 from ._colors import (
-    Color,
-    MaybeObservableColor,
     homogenize_color_types,
     apply_apm,
     apply_apm_observed,
@@ -23,3 +21,4 @@ from ._colors import (
 )
 from ._dynamic_config import apply_to_config, apply_to_tk_var
 from ._scaling import apply_widget_scaling, reverse_widget_scaling, apply_window_scaling, reverse_window_scaling
+from .types import *

@@ -16,5 +16,6 @@ from el.errors import SetupError
 try:
     import customtkinter as ctk
     import tkinter as tk
+    from PIL import ImageTk
 except ImportError:
-    raise SetupError("el.ctk_utils requires customtkinter. Please install it before using el.ctk_utils.")
+    raise SetupError("el.ctk_utils requires customtkinter and pillow (PIL). Please install them before using el.ctk_utils or any el modules depending on it.")

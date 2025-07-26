@@ -16,7 +16,7 @@ from ._deps import *
 
 
 ConfigOptionName = Literal[
-    # ctk.Button
+    # ctk.CTkButton(Ex)
     "corner_radius",
     "border_width",
     "border_spacing",
@@ -35,6 +35,7 @@ ConfigOptionName = Literal[
     "command",
     "compound",
     "anchor",
+    "touchscreen_mode", # Ex
     # tk.Frame
     "background",
     "bd",
