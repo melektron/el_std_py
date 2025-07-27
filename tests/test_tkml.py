@@ -20,8 +20,9 @@ import logging
 import tkinter as tk
 
 from el.tkml._context import _master_ctx, _grid_next_column_ctx, _grid_next_row_ctx
-from el.tkml.adapters import tkr, tkc, tkl
+from el.tkml.adapters import tkr, tkc, tkl, tku, stringvar_adapter, intvar_adapter, doublevar_adapter, boolvar_adapter
 from el.tkml.grid import add_column, add_row, next_column, next_row, grid_layout
+from el.observable import Observable
 
 _log = logging.getLogger(__name__)
 
@@ -69,6 +70,44 @@ def test_tkl_master_missing():
         assert _master_ctx.get() is None
         b = tkl(tk.Button)(text="test")
     assert _master_ctx.get() is None
+
+def test_tku_new_grid():
+    master = tk.Tk()
+    column_token = _grid_next_column_ctx.set(1)
+    row_token = _grid_next_row_ctx.set(1)
+    with tku(master) as m:
+        assert _grid_next_column_ctx.get() == 0
+        assert _grid_next_row_ctx.get() == 0
+        assert _master_ctx.get() is m
+        assert _master_ctx.get() is master
+        assert master is m
+        m.destroy()
+    assert _grid_next_column_ctx.get() == 1
+    assert _grid_next_row_ctx.get() == 1
+    assert _master_ctx.get() is None
+    _grid_next_column_ctx.reset(column_token)
+    _grid_next_row_ctx.reset(row_token)
+    assert _grid_next_column_ctx.get() == 0
+    assert _grid_next_row_ctx.get() == 0
+
+def test_tku_no_new_grid():
+    master = tk.Tk()
+    column_token = _grid_next_column_ctx.set(1)
+    row_token = _grid_next_row_ctx.set(1)
+    with tku(master, new_grid=False) as m:
+        assert _grid_next_column_ctx.get() == 1
+        assert _grid_next_row_ctx.get() == 1
+        assert _master_ctx.get() is m
+        assert _master_ctx.get() is master
+        assert master is m
+        m.destroy()
+    assert _grid_next_column_ctx.get() == 1
+    assert _grid_next_row_ctx.get() == 1
+    assert _master_ctx.get() is None
+    _grid_next_column_ctx.reset(column_token)
+    _grid_next_row_ctx.reset(row_token)
+    assert _grid_next_column_ctx.get() == 0
+    assert _grid_next_row_ctx.get() == 0
 
 
 def test_grid_by_columns():
@@ -139,7 +178,6 @@ def test_grid_by_columns():
 # TODO: test for grid by row
 
 
-
 def test_grid_layout():
     """
     Tests the grid_layout() placement function.
@@ -186,3 +224,49 @@ def test_grid_layout():
             (None, None, b7    ),
         )
         #w.mainloop()
+
+
+def test_stringvar_adapter():
+    with tku(tk.Tk()):
+        obs = Observable[str]("")
+        var = stringvar_adapter(obs)
+        assert obs.value == ""
+        assert var.get() == ""
+        obs.value = "1"
+        assert var.get() == "1"
+        var.set("2")
+        assert obs.value == "2"
+
+def test_intvar_adapter():
+    with tku(tk.Tk()):
+        obs = Observable[int](0)
+        var = intvar_adapter(obs)
+        assert obs.value == 0
+        assert var.get() == 0
+        obs.value = 1
+        assert var.get() == 1
+        var.set(2)
+        assert obs.value == 2
+
+def test_doublevar_adapter():
+    with tku(tk.Tk()):
+        obs = Observable[float](0.1)
+        var = doublevar_adapter(obs)
+        assert obs.value == 0.1
+        assert var.get() == 0.1
+        obs.value = 1.1
+        assert var.get() == 1.1
+        var.set(2.1)
+        assert obs.value == 2.1
+
+def test_boolvar_adapter():
+    with tku(tk.Tk()):
+        obs = Observable[bool](False)
+        var = boolvar_adapter(obs)
+        assert obs.value == False
+        assert var.get() == False
+        obs.value = True
+        assert var.get() == True
+        var.set(False)
+        assert obs.value == False
+

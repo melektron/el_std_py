@@ -310,7 +310,7 @@ def specialized_file(
                 if __name == "__actual_file__":
                     return None
                 # Pass all public attributes of File to the actual file instance.
-                # (this is a hack to sort of create a product type of Fiel and the file's content)
+                # (this is a hack to sort of create a product type of Field and the file's content)
                 if not __name.startswith("_") and hasattr(self.__actual_file__, __name):
                     return getattr(self.__actual_file__, __name)
                 # For all other cases, just forward the call to the file content
@@ -323,7 +323,7 @@ def specialized_file(
                 if self.__actual_file__ is None:
                     return super().__setattr__(__name, __value)
                 # Pass all public attributes of File to the actual file instance.
-                # (this is a hack to sort of create a product type of Fiel and the file's content)
+                # (this is a hack to sort of create a product type of Field and the file's content)
                 if not __name.startswith("_") and hasattr(self.__actual_file__, __name):
                     return setattr(self.__actual_file__, __name, __value)
                 # After that, we just redirect all setattr calls to the file content

@@ -20,30 +20,30 @@ from ._button_ex import CTkButtonEx
 
 
 class _CTkSegmentedButtonPassthroughArgs(typing.TypedDict):
-    width: int = 140,
-    height: int = 28,
-    corner_radius: typing.Optional[int] = None,
-    border_width: int = 3,
+    width: int
+    height: int
+    corner_radius: typing.Optional[int]
+    border_width: int
 
-    bg_color: Color = "transparent",
-    fg_color: typing.Optional[Color] = None,
-    selected_color: typing.Optional[Color] = None,
-    selected_hover_color: typing.Optional[Color] = None,
-    unselected_color: typing.Optional[Color] = None,
-    unselected_hover_color: typing.Optional[Color] = None,
-    text_color: typing.Optional[Color] = None,
-    text_color_disabled: typing.Optional[Color] = None,
-    background_corner_colors: typing.Optional[tuple[Color]] = None,
+    bg_color: Color
+    fg_color: typing.Optional[Color]
+    selected_color: typing.Optional[Color]
+    selected_hover_color: typing.Optional[Color]
+    unselected_color: typing.Optional[Color]
+    unselected_hover_color: typing.Optional[Color]
+    text_color: typing.Optional[Color]
+    text_color_disabled: typing.Optional[Color]
+    background_corner_colors: typing.Optional[tuple[Color]]
 
-    font: typing.Optional[FontArgType] = None,
-    values: typing.Optional[list[str]] = None,
-    variable: typing.Optional[tk.Variable] = None,
-    dynamic_resizing: bool = True,
-    command: typing.Optional[typing.Callable[[str], typing.Any]] = None,
-    state: StateType = "normal"
+    font: typing.Optional[FontArgType]
+    values: typing.Optional[list[str]]
+    variable: typing.Optional[tk.Variable]
+    dynamic_resizing: bool
+    command: typing.Optional[typing.Callable[[str], typing.Any]]
+    state: StateType
 
 class CTkSegmentedButtonExPassthroughArgs(_CTkSegmentedButtonPassthroughArgs):
-    touchscreen_mode: MaybeObservable[bool] = False
+    touchscreen_mode: MaybeObservable[bool]
 
 
 class CTkSegmentedButtonEx(ctk.CTkSegmentedButton):

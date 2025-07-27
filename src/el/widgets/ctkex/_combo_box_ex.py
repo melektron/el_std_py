@@ -21,33 +21,33 @@ from ._button_ex import CTkButtonEx
 
 
 class _CTkComboBoxPassthroughArgs(typing.TypedDict):
-    width: int = 140,
-    height: int = 28,
-    corner_radius: typing.Optional[int] = None,
-    border_width: typing.Optional[int] = None,
+    width: int
+    height: int
+    corner_radius: typing.Optional[int]
+    border_width: typing.Optional[int]
 
-    bg_color: Color = "transparent",
-    fg_color: typing.Optional[typing.Optional[Color]] = None,
-    border_color: typing.Optional[typing.Optional[Color]] = None,
-    button_color: typing.Optional[typing.Optional[Color]] = None,
-    button_hover_color: typing.Optional[typing.Optional[Color]] = None,
-    dropdown_fg_color: typing.Optional[typing.Optional[Color]] = None,
-    dropdown_hover_color: typing.Optional[typing.Optional[Color]] = None,
-    dropdown_text_color: typing.Optional[typing.Optional[Color]] = None,
-    text_color: typing.Optional[typing.Optional[Color]] = None,
-    text_color_disabled: typing.Optional[typing.Optional[Color]] = None,
+    bg_color: Color
+    fg_color: typing.Optional[typing.Optional[Color]]
+    border_color: typing.Optional[typing.Optional[Color]]
+    button_color: typing.Optional[typing.Optional[Color]]
+    button_hover_color: typing.Optional[typing.Optional[Color]]
+    dropdown_fg_color: typing.Optional[typing.Optional[Color]]
+    dropdown_hover_color: typing.Optional[typing.Optional[Color]]
+    dropdown_text_color: typing.Optional[typing.Optional[Color]]
+    text_color: typing.Optional[typing.Optional[Color]]
+    text_color_disabled: typing.Optional[typing.Optional[Color]]
 
-    font: typing.Optional[FontArgType] = None,
-    dropdown_font: typing.Optional[FontArgType] = None,
-    values: typing.Optional[list[str]] = None,
-    state: StateType = tk.NORMAL,
-    hover: bool = True,
-    variable: typing.Optional[tk.Variable] = None,
-    command: typing.Optional[typing.Callable[[str], typing.Any]] = None,
-    justify: JustifyType = "left"
+    font: typing.Optional[FontArgType]
+    dropdown_font: typing.Optional[FontArgType]
+    values: typing.Optional[list[str]]
+    state: StateType
+    hover: bool
+    variable: typing.Optional[tk.Variable]
+    command: typing.Optional[typing.Callable[[str], typing.Any]]
+    justify: JustifyType
 
 class CTkComboBoxExPassthroughArgs(_CTkComboBoxPassthroughArgs):
-    touchscreen_mode: MaybeObservable[bool] = False
+    touchscreen_mode: MaybeObservable[bool]
 
 
 class CTkComboBoxEx(ctk.CTkComboBox):

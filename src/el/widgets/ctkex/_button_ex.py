@@ -18,35 +18,35 @@ from el.ctk_utils import apply_to_config
 
 
 class _CTkButtonPassthroughArgs(typing.TypedDict):
-    width: int = 140,
-    height: int = 28,
-    corner_radius: typing.Optional[int] = None,
-    border_width: typing.Optional[int] = None,
-    border_spacing: int = 2,
+    width: int
+    height: int
+    corner_radius: typing.Optional[int]
+    border_width: typing.Optional[int]
+    border_spacing: int
 
-    bg_color: Color = "transparent",
-    fg_color: typing.Optional[Color] = None,
-    hover_color: typing.Optional[Color] = None,
-    border_color: typing.Optional[Color] = None,
-    text_color: typing.Optional[Color] = None,
-    text_color_disabled: typing.Optional[Color] = None,
+    bg_color: Color
+    fg_color: typing.Optional[Color]
+    hover_color: typing.Optional[Color]
+    border_color: typing.Optional[Color]
+    text_color: typing.Optional[Color]
+    text_color_disabled: typing.Optional[Color]
 
-    background_corner_colors: typing.Optional[tuple[Color]] = None,
-    round_width_to_even_numbers: bool = True,
-    round_height_to_even_numbers: bool = True,
+    background_corner_colors: typing.Optional[tuple[Color]]
+    round_width_to_even_numbers: bool
+    round_height_to_even_numbers: bool
 
-    text: str = "CTkButton",
-    font: typing.Optional[FontArgType] = None,
-    textvariable: typing.Optional[tk.Variable] = None,
-    image: ImageArgType = None,
-    state: StateType = "normal",
-    hover: bool = True,
-    command: typing.Union[typing.Callable[[], typing.Any], None] = None,
-    compound: CompoundType = "left",
-    anchor: AnchorType = "center",
+    text: str
+    font: typing.Optional[FontArgType]
+    textvariable: typing.Optional[tk.Variable]
+    image: ImageArgType
+    state: StateType
+    hover: bool
+    command: typing.Union[typing.Callable[[], typing.Any], None]
+    compound: CompoundType
+    anchor: AnchorType
 
 class CTkButtonExPassthroughArgs(_CTkButtonPassthroughArgs):
-    touchscreen_mode: MaybeObservable[bool] = False
+    touchscreen_mode: MaybeObservable[bool]
 
 
 class CTkButtonEx(ctk.CTkButton):

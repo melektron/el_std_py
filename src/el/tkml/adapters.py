@@ -11,10 +11,11 @@ provide any tkinter widget replacements.
 
 import logging
 import functools
-from typing import Callable, Concatenate, Generator, Any
+from typing import Callable, Concatenate, Generator, Any, Never, overload
 from contextlib import contextmanager
 from contextvars import ContextVar, Token
 
+from el.observable import Observable
 from ._deps import *
 from ._context import _master_ctx, _grid_next_row_ctx, _grid_next_column_ctx
 
@@ -197,3 +198,126 @@ def tku[T](master: T, new_grid: bool = True):
         if new_grid:
             _grid_next_column_ctx.reset(grid_next_column_token)
             _grid_next_row_ctx.reset(grid_next_row_token)
+
+
+@overload
+def tkvar_adapter[VT: tk.StringVar](
+    obs: Observable[str],
+    var_type: type[VT],
+    master: tk.Misc | None = None,
+    name: str | None = None
+) -> VT:
+    ...
+
+@overload
+def tkvar_adapter[VT: tk.IntVar](
+    obs: Observable[int],
+    var_type: type[VT],
+    master: tk.Misc | None = None,
+    name: str | None = None
+) -> VT:
+    ...
+
+@overload
+def tkvar_adapter[VT: tk.DoubleVar](
+    obs: Observable[float],
+    var_type: type[VT],
+    master: tk.Misc | None = None,
+    name: str | None = None
+) -> VT:
+    ...
+
+@overload
+def tkvar_adapter[VT: tk.BooleanVar](
+    obs: Observable[bool],
+    var_type: type[VT],
+    master: tk.Misc | None = None,
+    name: str | None = None
+) -> VT:
+    ...
+
+def tkvar_adapter[VT: tk.StringVar | tk.IntVar | tk.DoubleVar | tk.BooleanVar](
+    obs: Observable[str] | Observable[int] | Observable[float] | Observable[bool],
+    var_type: type[VT],
+    master: tk.Misc | None = None,
+    name: str | None = None
+) -> VT:
+    """
+    Creates tkinter variable of the provided type that 
+    is bidirectionally bound to (synced with) the 
+    provided observable.
+
+    Parameters
+    ----------
+    obs : Observable[str] | Observable[int] | Observable[float] | Observable[bool]
+        An observable whose datatype should match with the type
+        of tkinter variable to create.
+    var_type: type[VT]
+        tkinter variable type to instantiate
+    master: tk.Misc | None, optional
+        An optional explicit master to use for the tkinter variable.
+        If none is provided, the current master from TKML context will be used.
+    name: str | None, optional
+        Optional explicit TCL variable name to pass to the tkinter variable.
+        
+    Returns
+    -------
+    VT
+        A tkinter variable of the provided type.
+
+    Raises
+    ------
+    ValueError
+        Master was not provided and could not be determined from the TKML context
+    """
+    local_master = master if master is not None else _master_ctx.get()
+    if local_master is None:
+        raise ValueError("TKML variable adapter is missing a contextual master. Provide master manually or use in valid TKML context.")
+    
+    var = var_type(
+        master=local_master,
+        value=obs.value if obs.value != ... else None,
+        name=name
+    )
+    # obs -> var 
+    obs.observe(var.set, initial_update=False)
+    # obs <- var
+    def var_cb(self, *_):
+        # this doesn't cause recursion because value assignment
+        # only propagates when value differs
+        obs.value = var.get()
+    var.trace_add("write", var_cb)
+
+    return var
+
+def stringvar_adapter(
+    obs: Observable[str],
+    master: tk.Misc | None = None,
+    name: str | None = None
+):
+    """ shortcut to create a StringVar adapter with `tkvar_adapter` """
+    return tkvar_adapter(obs, tk.StringVar, master, name)
+
+def intvar_adapter(
+    obs: Observable[int],
+    master: tk.Misc | None = None,
+    name: str | None = None
+):
+    """ shortcut to create a IntVar adapter with `tkvar_adapter` """
+    return tkvar_adapter(obs, tk.IntVar, master, name)
+
+def doublevar_adapter(
+    obs: Observable[float],
+    master: tk.Misc | None = None,
+    name: str | None = None
+):
+    """ shortcut to create a DoubleVar adapter with `tkvar_adapter` """
+    return tkvar_adapter(obs, tk.DoubleVar, master, name)
+
+def boolvar_adapter(
+    obs: Observable[bool],
+    master: tk.Misc | None = None,
+    name: str | None = None
+):
+    """ shortcut to create a BooleanVar adapter with `tkvar_adapter` """
+    return tkvar_adapter(obs, tk.BooleanVar, master, name)
