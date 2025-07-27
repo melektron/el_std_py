@@ -17,3 +17,4 @@ from ._button_ex import CTkButtonEx, CTkButtonExPassthroughArgs
 from ._segmented_button_ex import CTkSegmentedButtonEx, CTkSegmentedButtonExPassthroughArgs
 from ._combo_box_ex import CTkComboBoxEx, CTkComboBoxExPassthroughArgs
 from ._switch_ex import CTkSwitchEx, CTkSwitchExPassthroughArgs
+from ._entry_ex import CTkEntryEx, CTkEntryExPassthroughArgs
