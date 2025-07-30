@@ -12,11 +12,12 @@ wrappers around the grid geometry manager to automatically count
 rows/columns in context
 """
 
-
+import typing
 import logging
 
+from el.ctk_utils.types import GridRowColConfigArgs
 from ._deps import *
-from ._context import _grid_next_column_ctx, _grid_next_row_ctx
+from ._context import _grid_next_column_ctx, _grid_next_row_ctx, _master_ctx
 
 _log = logging.getLogger(__name__)
 
@@ -25,9 +26,11 @@ type ScreenUnits = str | float
 
 def add_row[WT: tk.Widget](
     widget: WT,
+    column_override: int | None = None,
     columnspan: int | None = None,
     rowspan: int | None = None,
     rowspan_increment: bool = True,
+    row_increment: bool = True,
     ipadx: ScreenUnits | None = None,
     ipady: ScreenUnits | None = None,
     padx: ScreenUnits | tuple[ScreenUnits, ScreenUnits] | None = None,
@@ -44,6 +47,10 @@ def add_row[WT: tk.Widget](
     ----------
     widget : tk.Widget
         the widget to place
+    column_override : int, optional
+        Optional override of the column number. IF provided,
+        the widget will be placed in this column instead of the contextually 
+        determined one.
     columnspan : int, optional
         How many columns to the right the widget should span. 
         By default 1 (the current column).
@@ -54,6 +61,10 @@ def add_row[WT: tk.Widget](
         passed to `rowspan` (if applicable) so the next widget will be 
         placed the row AFTER all the ones spanned by this widget. Set this 
         to false to not account for rowspan.
+    row_increment : bool, optional
+        If disabled, the row context will not be incremented at all. This is 
+        useful (in combination with column_override) if you want to add a lot 
+        of rows and sometimes add multiple things in the same row in different columns.
     ipadx : ScreenUnits, optional
         internal padding in x direction
     ipady : ScreenUnits, optional
@@ -88,12 +99,13 @@ def add_row[WT: tk.Widget](
         kwargs["sticky"] = sticky
     
     kwargs["row"] = _grid_next_row_ctx.get()
-    kwargs["column"] = _grid_next_column_ctx.get()
+    kwargs["column"] = _grid_next_column_ctx.get() if column_override is None else column_override
 
-    if rowspan is not None and rowspan > 1 and rowspan_increment:
-        _grid_next_row_ctx.set(_grid_next_row_ctx.get() + rowspan)
-    else:
-        _grid_next_row_ctx.set(_grid_next_row_ctx.get() + 1)
+    if row_increment:
+        if rowspan is not None and rowspan > 1 and rowspan_increment:
+            _grid_next_row_ctx.set(_grid_next_row_ctx.get() + rowspan)
+        else:
+            _grid_next_row_ctx.set(_grid_next_row_ctx.get() + 1)
 
     widget.grid_configure(kwargs)
 
@@ -104,6 +116,8 @@ def add_column[WT: tk.Widget](
     widget: WT,
     columnspan: int | None = None,
     columnspan_increment: bool = True,
+    column_increment: bool = True,
+    row_override: int | None = None,
     rowspan: int | None = None,
     ipadx: ScreenUnits | None = None,
     ipady: ScreenUnits | None = None,
@@ -129,6 +143,14 @@ def add_column[WT: tk.Widget](
         passed to `columnspan` (if applicable) so the next widget will be 
         placed the in column AFTER all the ones spanned by this widget. Set this 
         to false to not account for columnspan.
+    column_increment : bool, optional
+        If disabled, the column context will not be incremented at all. This is 
+        useful (in combination with row_override) if you want to add a lot 
+        of columns and sometimes add multiple things in the same column in different rows.
+    row_override : int, optional
+        Optional override of the row number. If provided,
+        the widget will be placed in this row instead of the contextually 
+        determined one.
     rowspan : int, optional
         How many rows down the widget should span. By default only 1.
     ipadx : ScreenUnits, optional
@@ -164,13 +186,14 @@ def add_column[WT: tk.Widget](
     if sticky is not None:
         kwargs["sticky"] = sticky
     
-    kwargs["row"] = _grid_next_row_ctx.get()
+    kwargs["row"] = _grid_next_row_ctx.get() if row_override is None else row_override
     kwargs["column"] = _grid_next_column_ctx.get()
 
-    if columnspan is not None and columnspan > 1 and columnspan_increment:
-        _grid_next_column_ctx.set(_grid_next_column_ctx.get() + rowspan)
-    else:
-        _grid_next_column_ctx.set(_grid_next_column_ctx.get() + 1)
+    if column_increment:
+        if columnspan is not None and columnspan > 1 and columnspan_increment:
+            _grid_next_column_ctx.set(_grid_next_column_ctx.get() + rowspan)
+        else:
+            _grid_next_column_ctx.set(_grid_next_column_ctx.get() + 1)
 
     widget.grid_configure(kwargs)
     
@@ -297,4 +320,101 @@ def grid_layout(
             row=min(y_positions),
             rowspan=(max(y_positions) - min(y_positions) + 1)
         )
+
+
+def get_previous_column() -> int | None:
+    """
+    Returns
+    -------
+    The previous column that was added using add_column() or
+    None if no column was added yet.
+    """
+    col = _grid_next_column_ctx.get()
+    return col if col >= 0 else None
+
+
+def get_previous_row() -> int | None:
+    """
+    Returns
+    -------
+    The previous row that was added using add_row() or
+    None if no row was added yet.
+    """
+    
+    row = _grid_next_row_ctx.get() - 1
+    return row if row >= 0 else None
+
+
+def configure_next_column(
+    **kwargs: typing.Unpack[GridRowColConfigArgs]
+) -> int | None:
+    """
+    Configures the next column of the contextual master that 
+    would be placed using `add_column()`.
+    See https://wiki.tcl-lang.org/page/grid+columnconfigure
+
+    Parameters
+    ----------
+    minsize : int, optional
+        The minimum size, in screen units, that will be permitted for this column.
+    weight : int, optional
+        The relative weight for apportioning any extra spaces among columns. 
+        A weight of zero (0) indicates the column will not deviate from its 
+        requested size. A column whose weight is two will grow at twice the 
+        rate as a column of weight one when extra space is allocated to the layout.
+        Keep in mind that equal weights does not mean the columns are the same width,
+        just that they EXPAND in equal proportions. Use `uniform` to enforce width 
+        proportions exactly.
+    uniform : str, optional
+        String identifying a uniform group the column is placed in. When a 
+        value is supplied, places the column in a uniform group with other 
+        columns that have the same value for `uniform`. The space for columns 
+        belonging to a uniform group is allocated so that their sizes are 
+        always in strict proportion to their `weight` values
+    pad : int, optional
+        The number of screen units that will be added to the largest window 
+        contained completely in that column when the grid geometry manager 
+        requests a size from the containing window.
+    """
+    local_master = _master_ctx.get()
+    if local_master is None:
+        raise ValueError("TKML configure_next_column is missing a contextual master. Only use this function in a container context that uses contextual grid.")
+    local_master.grid_columnconfigure(_grid_next_column_ctx.get(), **kwargs)
+
+
+def configure_next_row(
+    **kwargs: typing.Unpack[GridRowColConfigArgs]
+) -> int | None:
+    """
+    Configures the next row of the contextual master that 
+    would be placed using `add_row()`.
+    See https://wiki.tcl-lang.org/page/grid+rowconfigure
+
+    Parameters
+    ----------
+    minsize : int, optional
+        The minimum size, in screen units, that will be permitted for this row.
+    weight : int, optional
+        The relative weight for apportioning any extra spaces among rows. 
+        A weight of zero (0) indicates the row will not deviate from its 
+        requested size. A row whose weight is two will grow at twice the 
+        rate as a row of weight one when extra space is allocated to the layout.
+        Keep in mind that equal weights does not mean the rows are the same width,
+        just that they EXPAND in equal proportions. Use `uniform` to enforce width 
+        proportions exactly.
+    uniform : str, optional
+        String identifying a uniform group the row is placed in. When a 
+        value is supplied, places the row in a uniform group with other 
+        rows that have the same value for `uniform`. The space for rows 
+        belonging to a uniform group is allocated so that their sizes are 
+        always in strict proportion to their `weight` values
+    pad : int, optional
+        The number of screen units that will be added to the largest window 
+        contained completely in that row when the grid geometry manager 
+        requests a size from the containing window.
+    """
+    local_master = _master_ctx.get()
+    if local_master is None:
+        raise ValueError("TKML configure_next_row is missing a contextual master. Only use this function in a container context that uses contextual grid.")
+    local_master.grid_rowconfigure(_grid_next_row_ctx.get(), **kwargs)
 

@@ -23,3 +23,9 @@ type AnchorType = typing.Literal["center", "n", "s", "e", "w"]
 type JustifyType = typing.Literal["left", "center", "right"]
 type CompoundType = typing.Literal["right", "left", "top", "bottom"]
 type StateType = typing.Literal["normal", "disabled", "active"]
+
+class GridRowColConfigArgs(typing.TypedDict, total=False):
+    minsize: int
+    weight: int
+    uniform: str
+    pad: int
