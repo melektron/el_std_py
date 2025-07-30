@@ -19,7 +19,7 @@ from el.ctk_utils import apply_to_config
 from ._button_ex import CTkButtonEx
 
 
-class _CTkSegmentedButtonPassthroughArgs(typing.TypedDict):
+class _CTkSegmentedButtonPassthroughArgs(typing.TypedDict, total=False):
     width: int
     height: int
     corner_radius: typing.Optional[int]
@@ -42,7 +42,7 @@ class _CTkSegmentedButtonPassthroughArgs(typing.TypedDict):
     command: typing.Optional[typing.Callable[[str], typing.Any]]
     state: StateType
 
-class CTkSegmentedButtonExPassthroughArgs(_CTkSegmentedButtonPassthroughArgs):
+class CTkSegmentedButtonExPassthroughArgs(_CTkSegmentedButtonPassthroughArgs, total=False):
     touchscreen_mode: MaybeObservable[bool]
 
 

@@ -17,7 +17,7 @@ from el.ctk_utils.types import *
 from el.ctk_utils import apply_to_config
 
 
-class _CTkEntryPassthroughArgs(typing.TypedDict):
+class _CTkEntryPassthroughArgs(typing.TypedDict, total=False):
     width: int
     height: int
     corner_radius: typing.Optional[int]
@@ -34,14 +34,14 @@ class _CTkEntryPassthroughArgs(typing.TypedDict):
     font: typing.Optional[FontArgType] = None,
     state: StateType = tk.NORMAL,
 
-class CTkEntryExPassthroughArgs(_CTkEntryPassthroughArgs):
+class CTkEntryExPassthroughArgs(_CTkEntryPassthroughArgs, total=False):
     touchscreen_mode: MaybeObservable[bool]
 
 
 class CTkEntryEx(ctk.CTkEntry):
 
     def __init__(self,
-        master: tk.Misc,
+        master: tk.Widget,
         touchscreen_mode: MaybeObservable[bool] = False,
         **kwargs: typing.Unpack[_CTkEntryPassthroughArgs]
     ):
@@ -85,5 +85,5 @@ class CTkEntryEx(ctk.CTkEntry):
             self.configure(cursor="none")
             self._entry.configure(cursor="none")
         else:
-            self.configure(cursor="xterm")
+            self.configure(cursor="")
             self._entry.configure(cursor="xterm")

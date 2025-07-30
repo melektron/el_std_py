@@ -19,7 +19,7 @@ from el.ctk_utils import apply_to_config
 from ._button_ex import CTkButtonEx
 
 
-class _CTkSwitchPassthroughArgs(typing.TypedDict):
+class _CTkSwitchPassthroughArgs(typing.TypedDict, total=False):
     width: int
     height: int
     switch_width: int
@@ -47,7 +47,7 @@ class _CTkSwitchPassthroughArgs(typing.TypedDict):
     command: typing.Optional[typing.Callable[[], typing.Any]]
     state: StateType
 
-class CTkSwitchExPassthroughArgs(_CTkSwitchPassthroughArgs):
+class CTkSwitchExPassthroughArgs(_CTkSwitchPassthroughArgs, total=False):
     touchscreen_mode: MaybeObservable[bool]
 
 

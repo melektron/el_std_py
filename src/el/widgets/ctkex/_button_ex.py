@@ -17,7 +17,7 @@ from el.ctk_utils.types import *
 from el.ctk_utils import apply_to_config
 
 
-class _CTkButtonPassthroughArgs(typing.TypedDict):
+class _CTkButtonPassthroughArgs(typing.TypedDict, total=False):
     width: int
     height: int
     corner_radius: typing.Optional[int]
@@ -45,7 +45,7 @@ class _CTkButtonPassthroughArgs(typing.TypedDict):
     compound: CompoundType
     anchor: AnchorType
 
-class CTkButtonExPassthroughArgs(_CTkButtonPassthroughArgs):
+class CTkButtonExPassthroughArgs(_CTkButtonPassthroughArgs, total=False):
     touchscreen_mode: MaybeObservable[bool]
 
 
