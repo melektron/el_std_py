@@ -32,8 +32,10 @@ class _CTkEntryPassthroughArgs(typing.TypedDict, total=False):
 
     textvariable: typing.Optional[tk.Variable]
     placeholder_text: typing.Optional[str]
-    font: typing.Optional[FontArgType] = None,
-    state: StateType = tk.NORMAL,
+    font: typing.Optional[FontArgType]
+    state: StateType
+
+    justify: JustifyType
 
 class CTkEntryExPassthroughArgs(_CTkEntryPassthroughArgs, total=False):
     touchscreen_mode: MaybeObservable[bool]
