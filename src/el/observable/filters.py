@@ -57,6 +57,22 @@ def call_if_true(
     return obs
 
 
+def ignore_errors[I, O](
+    handler: ObserverFunction[I, O],
+) -> ObserverFunction[I, O]:
+    """
+    wraps the observer function `handler` within
+    a try-except block. If an exception occurs,
+    ellipsis is returned (i.e. update is absorbed)
+    """
+    def obs(v: I) -> O:
+        try:
+            return handler(v)
+        except:
+            return ...
+    return obs
+
+
 class throttle[T](StatefulFilter[T, T]):
     @typing.overload
     def __init__(self, *, hz: float, postpone_updates: bool = True):

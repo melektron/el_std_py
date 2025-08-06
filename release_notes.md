@@ -23,3 +23,11 @@
 - added `MaybeObservable` type and the accompanying functions `maybe_observe` and `maybe_obs_value` to `el.observable`
 - `el.observable.Observable.observe()` now has a flag to disable initial updates
 - added module `el.widgets.ctkex`: A collection of CTk Widgets with extended functionality such as touchscreen mode. (Unlike other `el.widgets`, these are not new, specialized widgets, but just regular CTk widgets with some additional functionality)
+  - option to selectively disable corner rounding on `CTkEntryEx` and `CTkButtonEx`
+  - patched support for `background_corner_colors`, `round_height_to_even_numbers`, `round_width_to_even_numbers` arguments (from `CTkButton`) into `CTkEntryEx` 
+- added `spinbox.SpinBox` to `el.widgets`
+  - configurable increments and formatting
+  - text input and button input possible
+  - configurable text/icons on buttons
+  - child-widgets exposed for further customization
+  - observable

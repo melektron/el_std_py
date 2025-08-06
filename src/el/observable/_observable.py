@@ -97,7 +97,8 @@ class _ObserverRecord[T]:
 
 class Observable[T](AbstractRegistry):
 
-    def __init__(self, initial_value: T = ...):
+    def __init__(self, initial_value: T = ..., *args, **kwargs):
+        super().__init__(*args, **kwargs)
         self._value: T = initial_value
         self._observers: dict[RegistrationID, _ObserverRecord[T]] = {}
         self._next_observer_id: RegistrationID = 0
@@ -350,6 +351,20 @@ def maybe_obs_value[T](var: MaybeObservable[T]) -> T:
         return var.value
     else:
         return var
+
+def maybe_get_obs[T](var: MaybeObservable[T]) -> Observable[T]:
+    """
+    Returns
+    -------
+    Observable[T]
+        An observable corresponding to the maybe observable.
+        If `var` is an observable it is returned, otherwise
+        a new observable with initial value `var` is returned.
+    """
+    if isinstance(var, Observable):
+        return var
+    else:
+        return Observable(var)
 
 
 ComposedObserverFunction = typing.Callable[[tuple[any]], None]
