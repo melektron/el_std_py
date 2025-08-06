@@ -63,6 +63,8 @@ class SpinBox(ctk.CTkFrame, Observable[float]):
         initial_value: float = 0.0,
         formatter: typing.Callable[[float], str] = lambda v: f"{v:.0f}",
         increments: float = 1.0,
+        min_value: float = 0,
+        max_value: float = float("inf"),
 
         state: StateType = "normal",
         hover: bool = True,
@@ -91,6 +93,8 @@ class SpinBox(ctk.CTkFrame, Observable[float]):
         self._entry_text = Observable[str]("")
         self._formatter = formatter
         self._increments = increments
+        self._min_value = min_value
+        self._max_value = max_value
 
         self._command = command
 
@@ -158,6 +162,7 @@ class SpinBox(ctk.CTkFrame, Observable[float]):
                     textvariable=stringvar_adapter(self._entry_text),
                     font=font,
                     state=state,
+                    touchscreen_mode=touchscreen_mode,
                     background_corner_colors=(
                         self._border_color,
                         self._border_color,
@@ -211,13 +216,17 @@ class SpinBox(ctk.CTkFrame, Observable[float]):
 
     def _minus_command(self) -> None:
         """ command handler for minus button """
-        self.value -= self._increments
         self.focus()
+        if self.value <= self._min_value:
+            return
+        self.value -= self._increments
 
     def _plus_command(self) -> None:
         """ command handler for plus button """
-        self.value += self._increments
         self.focus()
+        if self.value >= self._max_value:
+            return
+        self.value += self._increments
     
     def _handle_change(self, v: float) -> None:
         if self._command is not None:

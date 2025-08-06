@@ -18,3 +18,4 @@ from ._segmented_button_ex import CTkSegmentedButtonEx, CTkSegmentedButtonExPass
 from ._combo_box_ex import CTkComboBoxEx, CTkComboBoxExPassthroughArgs
 from ._switch_ex import CTkSwitchEx, CTkSwitchExPassthroughArgs
 from ._entry_ex import CTkEntryEx, CTkEntryExPassthroughArgs
+from ._frame_ex import CTkFrameEx
