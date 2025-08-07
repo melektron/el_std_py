@@ -107,7 +107,7 @@ def add_row[WT: tk.Widget](
         else:
             _grid_next_row_ctx.set(_grid_next_row_ctx.get() + 1)
 
-    widget.grid_configure(kwargs)
+    widget.grid(**kwargs)
 
     return widget
 
@@ -195,7 +195,7 @@ def add_column[WT: tk.Widget](
         else:
             _grid_next_column_ctx.set(_grid_next_column_ctx.get() + 1)
 
-    widget.grid_configure(kwargs)
+    widget.grid(**kwargs)
     
     return widget
 
@@ -266,7 +266,7 @@ def grid_layout(
     or columnspan being set. The span areas must be rectangular.
 
     If additional grid parameters need to be specified for specific widgets, they
-    can be added using the `grid_configure()` method directly (either before
+    can be added using the `grid()` method directly (either before
     or after the `grid_layout()` call, doesn't matter) without passing row/column
     information to it. 
     
@@ -314,7 +314,7 @@ def grid_layout(
                 if (x, y) not in positions:
                     raise ValueError(f"Grid area occupied by widget {widget} is not rectangular: cell ({x}, {y}) is not assigned to this widget.")
         # if all areas are present, the placement is valid and to be executed
-        widget.grid_configure(
+        widget.grid(
             column=min(x_positions),
             columnspan=(max(x_positions) - min(x_positions) + 1),
             row=min(y_positions),

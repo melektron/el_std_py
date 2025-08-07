@@ -184,25 +184,25 @@ def test_grid_layout():
     """
     with tkr(tk.Tk)() as w:
         b1 = tkl(tk.Button)(text="b1")
-        b1.grid_configure(sticky="nsew")
+        b1.grid(sticky="nsew")
         b2 = tkl(tk.Button)(text="b2")
-        b2.grid_configure(sticky="nsew")
+        b2.grid(sticky="nsew")
         b3 = tkl(tk.Button)(text="b3")
-        b3.grid_configure(sticky="nsew")
+        b3.grid(sticky="nsew")
 
         next_column()
         b4 = tkl(tk.Button)(text="b4")
-        b4.grid_configure(sticky="nsew")
+        b4.grid(sticky="nsew")
         b8 = tkl(tk.Button)(text="b8")
-        b8.grid_configure(sticky="nsew")
+        b8.grid(sticky="nsew")
         b5 = tkl(tk.Button)(text="b5")
-        b5.grid_configure(sticky="nsew")
+        b5.grid(sticky="nsew")
 
         next_column(reset_row=False)
         b6 = tkl(tk.Button)(text="b6")
-        b6.grid_configure(sticky="nsew")
+        b6.grid(sticky="nsew")
         b7 = tkl(tk.Button)(text="b7")
-        b7.grid_configure(sticky="nsew")
+        b7.grid(sticky="nsew")
 
         # also test grid-arranging containers
         # (these create sub grid-contexts but must place
