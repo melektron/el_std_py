@@ -169,6 +169,49 @@ def test_derived_observable():
     assert observer_result2 == 6
 
 
+def test_link():
+    """ tests bidirectional linking with initial update """
+
+    obs1 = Observable[int](2)
+    obs2 = Observable[int](3)
+    
+    assert obs1.value == 2, "expect initial value"
+    assert obs2.value == 3, "expect initial value"
+
+    obs1.link(obs2)
+    assert obs1.value == 2, "expect initial value still"
+    assert obs2.value == 2, "expect updated value from obs1"
+
+    obs1.value = 4
+    assert obs1.value == 4, "expect updated value on both observables"
+    assert obs2.value == 4, "expect updated value on both observables"
+
+    obs2.value = 5
+    assert obs1.value == 5, "expect updated value on both observables"
+    assert obs2.value == 5, "expect updated value on both observables"
+
+def test_link_without_initial_update():
+    """ tests bidirectional linking without initial update """
+
+    obs1 = Observable[int](2)
+    obs2 = Observable[int](3)
+    
+    assert obs1.value == 2, "expect initial value"
+    assert obs2.value == 3, "expect initial value"
+
+    obs1.link(obs2, initial_update=False)
+    assert obs1.value == 2, "expect initial value still"
+    assert obs2.value == 3, "expect initial value still"
+
+    obs1.value = 4
+    assert obs1.value == 4, "expect updated value on both observables"
+    assert obs2.value == 4, "expect updated value on both observables"
+
+    obs2.value = 5
+    assert obs1.value == 5, "expect updated value on both observables"
+    assert obs2.value == 5, "expect updated value on both observables"
+
+
 def test_filter_if_true():
     obs = Observable[int]()
     observer_result = 5

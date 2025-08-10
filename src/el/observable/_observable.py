@@ -292,6 +292,25 @@ class Observable[T](AbstractRegistry):
             raise RecursionError("Observable cannot observe itself")
         observable >> self.receive
     
+    def link(self, other: "Observable[T]", initial_update: bool = True):
+        """
+        Establishes a bidirectional link between two
+        observables (`other` and `self`).
+        When either observable updates, the other does as well.
+        When initially linking, `other` is updated
+        with the value of `self`.
+
+        Parameters
+        ----------
+        observable : Observable[T]
+            observable to link with
+        initial_update : bool 
+            whether to initially update `other` with the value
+            of `self`. By default True.
+        """
+        self.observe(other.receive, initial_update=initial_update)
+        other.observe(self.receive, initial_update=False)
+
     @typing.override
     def _ar_unregister(self, id: RegistrationID):
         """

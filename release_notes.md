@@ -31,3 +31,5 @@
   - configurable text/icons on buttons
   - child-widgets exposed for further customization
   - observable
+- added working implementation of `ComposedObservable` and the `compose` helper function to `el.observable`
+- added bidirectional linking support to observables using the `link()` method
