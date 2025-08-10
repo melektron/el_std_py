@@ -17,7 +17,7 @@ import typing
 import logging
 import asyncio
 
-from el.observable import Observable
+from el.observable import Observable, compose, ComposedObservable
 from el.observable.filters import *
 from el.lifetime import LifetimeManager
 
@@ -411,4 +411,65 @@ def test_lifetime_disconnects_filters():
     assert deleted == True, "lifetime ended, references gone, filter should have been deleted"
     obs.value = 3
     assert observer_result == 2, "lifetime ended, should no longer update"
+
+
+def test_compose_not_all():
+    """
+    Test that composed observable with all_required=False 
+    works correctly
+    """
+    obs_a = Observable[int](1)
+    obs_b = Observable[float]() # empty
+    obs_c = Observable[str]("hi")
+    received: tuple[int, float, str] = ...
+    def observer(a: int, b: float, c: str):
+        nonlocal received
+        received = (a, b, c)
+
+    compose(obs_a, obs_b, obs_c, all_required=False).observe(observer)
+    assert received == (1, ..., "hi"), "initial update should be propagated"
+
+    obs_a.value = 2
+    assert received == (2, ..., "hi"), "update should be propagated even though obs_b is empty"
+
+    obs_c.value = ...
+    assert received == (2, ..., "hi"), "when source is emptied, it should not be propagated"
+
+    obs_b.value = 5.4
+    assert received == (2, 5.4, ...), "when different source is changed, empty should be passed"
+
+def test_compose_all():
+    """
+    Test that composed observable with all_required=True (default)
+    works correctly
+    """
+    obs_a = Observable[int](1)
+    obs_b = Observable[float]() # empty
+    obs_c = Observable[str]("hi")
+    received: tuple[int, float, str] = ...
+    def observer(a: int, b: float, c: str):
+        nonlocal received
+        received = (a, b, c)
+
+    obs_comp = compose(obs_a, obs_b, obs_c)
+    obs_comp.observe(observer)
+    assert received == ..., "initial update should not have happened bc one value was empty"
+    assert obs_comp.value == ..., "entire value of the composed observable should be empty still"
+
+    obs_a.value = 2
+    assert received == ..., "update should not yet be propagated bc obs_b is still empty"
+    assert obs_comp.value == ..., "entire value of the composed observable should be empty still"
+
+    obs_b.value = 5.4
+    assert received == (2, 5.4, "hi"), "when value is no longer empty, update should be propagated"
+    assert obs_comp.value == (2, 5.4, "hi"), "value should also be stored"
+    
+    obs_c.value = ...
+    assert received == (2, 5.4, "hi"), "when a source is emptied, it should not be propagated to the composed observable"
+    assert obs_comp.value == (2, 5.4, "hi"), "when a source is emptied, it should not be propagated to the composed observable"
+
+    obs_b.value = 1.8
+    assert obs_comp.value == ..., "when a different source is assigned, the entire observable should be emptied bc one of the sources is empty"
+    assert received == (2, 5.4, "hi"), "callback should not have been called bc the observable was empty"
+ 
 

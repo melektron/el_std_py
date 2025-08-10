@@ -139,7 +139,8 @@ class Observable[T](AbstractRegistry):
         if the value is not equal to the previous value.
 
         If the observable is set to ... (Ellipsis), that means "no value". This will be 
-        internally stored but observers are not notified of it. 
+        internally stored but observers are not notified of it. This is mainly intended
+        for filters and should in most cases not be used directly.
         """
         if v is ...:    #
             self._value = ...
