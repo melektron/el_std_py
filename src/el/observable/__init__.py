@@ -1,4 +1,3 @@
-from ._composed_generated import *
 
 from ._observable import (
     ObserverFunction,
@@ -8,6 +7,9 @@ from ._observable import (
     maybe_observe,
     maybe_obs_value,
     maybe_get_obs,
+)
+
+from ._composed import (
     ComposedObserverFunction,
     ComposedObservable,
     compose,

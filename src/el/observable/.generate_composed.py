@@ -23,36 +23,23 @@ END_MARKER = "## == PROC GENERATED END == ##"
 
 with open("_composed.py", "r") as f:
     content = f.read()
-    content_pre, content = content.split(START_MARKER)
-    _, content_post = content.split(END_MARKER)
+    try:
+        content_pre, content = content.split(START_MARKER)
+        _, content_post = content.split(END_MARKER)
+    except ValueError:
+        print("ERROR: No valid generation markers found in file")
+        exit(1)
 
-with open("_composed_out.py", "w") as f:
+with open("_composed.py", "w") as f:
     f.write(content_pre)
+    f.write(START_MARKER)
+
     for l in range(1, 65):
         t_args = [f"T{i}" for i in range(l)]
         args = [f"s{i}: Observable[T{i}]" for i in range(l)]
         f.write(base_text.format(", ".join(t_args), ", ".join(args), ", ".join(t_args)))
+
+    f.write(END_MARKER)
     f.write(content_post)
 
-
-
-
-#"""
-#
-#mach -tasks
-#mach -props
-#mach -p file.json
-#mach .debugMode=true :task
-#
-#"""
-#
-#argv = ["-tasks", "-p", "file.json", ]
-#
-#while True:
-#    if len(argv) == 0:
-#        break
-#    arg = argv.pop()
-#    match arg:
-#        case "-p":
-#            file = argv.pop()
-#
+print("SUCCESS: Generated overloads")
