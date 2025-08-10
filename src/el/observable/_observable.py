@@ -367,57 +367,157 @@ def maybe_get_obs[T](var: MaybeObservable[T]) -> Observable[T]:
         return Observable(var)
 
 
-ComposedObserverFunction = typing.Callable[[tuple[any]], None]
 
-class ComposedObservable:
+type ComposedObserverFunction[*Ts, R] = typing.Callable[[*Ts], R]
+
+class ComposedObservable[*Ts](Observable[tuple[*Ts]]):
+    """ 
+    Return type of `el.observable.compose()`. This is
+    not to be constructed by a library user directly!
     """
-    NOTE: this is currently not working
-    """
-    
-    _sources: tuple[Observable]
-    _observers: list[ComposedObserverFunction]
-    _init_complete = False
 
-    def __init__(self, *sources: Observable):
-        # observe all the sources
-        self._sources = sources
-        for source in sources:
-            if not isinstance(source, Observable):
-                raise TypeError(f"Observable cannot be composed from non-Observable source '{type(source)}'")
-            source >> self._receive
-        self._observers = []
-        self._init_complete = True
+    def receive(self, *vs: *Ts):
+        """
+        same as the value setter, just for internal use in chaining and for setting in lambdas 
+        """
+        self.value = vs
 
-    def _receive(self, v):
+    def observe[R](
+        self, 
+        observer: ComposedObserverFunction[*Ts, R],
+        initial_update: bool = True
+    ) -> "Observable[R]":
         """
-        Internal callback that is observing all sources.
-        This is therefore called when any of the sources change value.
-        """
-        # ignore all the callbacks during init when all the sources observers are registered
-        if not self._init_complete: return
-        self._notify()
+        Adds a new observer function to the composed observable returned from `compose()`.
+        This acts exactly the same as the ">>" operator and is intended
+        for cases where the usage of such operators is not possible or
+        would be confusing.
 
-    def _notify(self):
-        """
-        Notifies all observers of the current value.
-        """
-        for observer in self._observers:
-            observer(self.value)
-    
-    @property
-    def value(self) -> tuple[any]:
-        """
-        Returns the tuple of sources values
-        """
-        return (source.value for source in self._sources)
+        If the observable already has a value, the observer is called immediately.
 
-    def __rshift__(self, observer: ComposedObserverFunction):
-        """
-        Adds a new observer function to the composed observable.
-        The Observer will be called every time any of the sources'
-        value changes
+        This returns a new observer that observes the return value of observer function.
+        This allows you to create derived observables with any conversion function
+        between them or chain multiple conversions.
+
+        When a function returns ... (Ellipsis), this is interpreted as "no value" and
+        the derived observable is not updated. This can be used to create filter functions.
+
+        Parameters
+        ----------
+        observer : ComposedObserverFunction[*Ts, R]
+            observer function to be called on value change. This is 
+            ComposedObserverFunction, meaning it will receive all arguments
+            of the source observables unpacked.
+        initial_update : bool, optional
+            whether the observer should be called with an initial value immediately
+            upon observation, by default True (which is the same behavior as the
+            >> operator). If the source observable has no value, an initial update
+            will never be emitted.
+        
+        Returns
+        -------
+        Observable[R]
+            The derived observable. This is no longer a composed observable
+            but instead just a regular one, as only one value can be returned.
+
+        Raises
+        ------
+        TypeError
+            Invalid observer function passed
+
+        Example
+        -------
+
+        ```python
+        number = Observable[int]()
+        text = Observable[str]()
+        composed = compose(number, text)
+        composed.observe(lambda n, t: print(f"number = {n}, text = {t}"))
+
+        # set the original observables
+        number.value = 5
+        text.value = "hi"
+        ``` 
+
+        Console output:
+
+        ```
+        number = 5, text = ...
+        number = 5, text = "hi"
+        ```
         """
         if not callable(observer):
             raise TypeError(f"Observer must be of callable type 'ComposedObserverFunction', not '{type(observer)}'")
-        observer(self.value)
-        self._observers.append(observer)
+        
+        # create a wrapper that unpacks the tuple in the composed observable value
+        def unpacker(v: tuple[*Ts]):
+            observer(*v)
+
+        return super().observe(unpacker, initial_update)
+
+    def __rshift__[R](self, observer: ComposedObserverFunction[*Ts, R]) -> "Observable[R]":
+        """
+        Adds a new observer function to the observable like `.observe()` but
+        with nicer syntax for chaining. This is however not recommended
+        for use on composed observables, as the observer may not be properly typed.
+        """
+        return self.observe(observer)
+
+
+def compose(
+    *args: Observable,
+    all_required: bool = True
+) -> ComposedObservable:
+    """
+    Composes multiple observables into one composed observable, 
+    which updates whenever any of the source observables update.
+    When the ComposedObservable is observed, the observer is called
+    with the values of all provided source observables in order.
+
+    Parameters
+    ----------
+    args : Observable
+        any observables that should be used as source
+    all_required : bool
+        whether all source observables are required to have a value
+        for the composed observable to be triggered. Setting this to true
+        ensures that observers are never called with ellipsis values,
+        but may cause updates of some observables to be missed while others
+        are empty.
+    
+    Returns
+    -------
+    ComposedObservable
+        Composed observable of the source types. This
+        is typed using overloads.
+    """
+    composed_obs = ComposedObservable()
+    def updater(_=None) -> None:
+        values = tuple(obs.value for obs in args)
+        if all_required and any(v == ... for v in values):
+            composed_obs.value = ...
+        else:
+            composed_obs.value = values
+    updater()   # set initial value
+    # hook up all the sources by observing them
+    for obs in args:
+        obs.observe(updater, initial_update=False)   # init already done above
+    
+    return composed_obs
+
+# The accompanying overloads are found in `./_composed_generated.py`
+
+
+#def compose[*T](*args: *T) -> tuple[*T]:
+#    ...
+#a = 5
+#b = "hi"
+#b = compose(a, b)
+#
+#
+#def comp_one[T, **P](obs: Observable[T], *args: P.args):
+#    return (obs.value, *comp_one(*args))
+#
+#a = Observable(5)
+#b = Observable("hi")
+#b = comp_one(a, b, b)

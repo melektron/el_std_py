@@ -1,3 +1,5 @@
+from ._composed_generated import *
+
 from ._observable import (
     ObserverFunction,
     StatefulFilter,
@@ -6,6 +8,7 @@ from ._observable import (
     maybe_observe,
     maybe_obs_value,
     maybe_get_obs,
-    #ComposedObservable,
-    #ComposedObserverFunction,
+    ComposedObserverFunction,
+    ComposedObservable,
+    compose,
 )

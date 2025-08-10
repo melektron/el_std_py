@@ -18,8 +18,6 @@ from weakref import WeakMethod, ref, ReferenceType
 from el.lifetime import AbstractRegistry, RegistrationID
 
 
-# deprecated! -> should be replaced by el.lifetime.RegistrationID
-type CallbackID = RegistrationID
 _id_counter: RegistrationID = 0
 
 
