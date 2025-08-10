@@ -37,18 +37,21 @@ class _CTkFramePassthroughArgs(typing.TypedDict, total=False):
     overwrite_preferred_drawing_method: typing.Optional[str]
 
 class CTkFrameExPassthroughArgs(_CTkFramePassthroughArgs, total=False):
-    ...
+    round_width_to_even_numbers: bool
+    round_height_to_even_numbers: bool
 
 
 class CTkFrameEx(ctk.CTkFrame):
 
     def __init__(self,
         master: tk.Misc,
+        round_width_to_even_numbers: bool = True,
+        round_height_to_even_numbers: bool = True,
         **kwargs: typing.Unpack[CTkFrameExPassthroughArgs]
     ):
         # we modify the mechanism to determine the fg_color by
         # always adding an fg_color attribute to the parent constructor
-        if "fg_color" not in kwargs:
+        if "fg_color" not in kwargs or kwargs["fg_color"] is None:
             if isinstance(master, ctk.CTkFrame):
                 # here we use the _detect_color_of_master() method instead of just using `_fg_color`.
                 # This accounts for transparency of the master(s).
@@ -60,3 +63,40 @@ class CTkFrameEx(ctk.CTkFrame):
                 kwargs["fg_color"] = ctk.ThemeManager.theme["CTkFrame"]["fg_color"]
 
         super().__init__(master, **kwargs)
+
+        # support for disabling round to even
+        self._round_width_to_even_numbers = round_width_to_even_numbers
+        self._round_height_to_even_numbers = round_height_to_even_numbers
+        self._draw_engine.set_round_to_even_numbers(self._round_width_to_even_numbers, self._round_height_to_even_numbers)
+
+    @typing.override
+    def configure(
+        self,
+        require_redraw=False,
+        **kwargs: typing.Unpack[CTkFrameExPassthroughArgs],
+    ):
+        """ 
+        Change configuration options dynamically. When changing any
+        MaybeObservable attributes with an Observable, the attribute
+        will only be set once and not observed. This is intended for
+        changing options without Observables.
+        """
+        if "round_width_to_even_numbers" in kwargs:
+            self._round_width_to_even_numbers = kwargs.pop("round_width_to_even_numbers")
+            self._draw_engine.set_round_to_even_numbers(self._round_width_to_even_numbers, self._round_height_to_even_numbers)
+            require_redraw = True
+        if "round_height_to_even_numbers" in kwargs:
+            self._round_height_to_even_numbers = kwargs.pop("round_height_to_even_numbers")
+            self._draw_engine.set_round_to_even_numbers(self._round_width_to_even_numbers, self._round_height_to_even_numbers)
+            require_redraw = True
+            
+        super().configure(require_redraw, **kwargs)
+
+    @typing.override
+    def cget(self, attribute_name: str) -> typing.Any:
+        if attribute_name == "round_width_to_even_numbers":
+            return self._round_width_to_even_numbers
+        elif attribute_name == "round_height_to_even_numbers":
+            return self._round_height_to_even_numbers
+        else:
+            return super().cget(attribute_name)

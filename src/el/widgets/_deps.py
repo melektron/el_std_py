@@ -16,6 +16,7 @@ from el.errors import SetupError
 try:
     import customtkinter as ctk
     from customtkinter.windows.widgets.scaling import CTkScalingBaseClass
+    from customtkinter.windows.widgets.appearance_mode import CTkAppearanceModeBaseClass
     import tkinter as tk
     #import PIL as pil
 except ImportError:
