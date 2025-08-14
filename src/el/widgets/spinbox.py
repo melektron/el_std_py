@@ -13,13 +13,11 @@ complete with observable support and touchscreen mode.
 """
 
 import typing
-import pydantic
 
-from el.observable import MaybeObservable, Observable, maybe_get_obs, maybe_obs_value
+from el.observable import MaybeObservable, Observable
 from el.observable.filters import ignore_errors
 from el.lifetime import LifetimeManager
 from el.ctk_utils.types import *
-from el.ctk_utils import apply_to_config
 from el.tkml.adapters import tku, tkl, stringvar_adapter
 from el.tkml.grid import configure_next_column, add_column
 
@@ -28,7 +26,7 @@ from ._deps import *
 
 
 
-class SpinBox(ctk.CTkFrame, Observable[float]):
+class SpinBox[T](ctk.CTkFrame, Observable[T]):
     def __init__(
         self,
         master: tk.Misc,
@@ -61,14 +59,15 @@ class SpinBox(ctk.CTkFrame, Observable[float]):
         image_plus: ImageArgType = None,
 
         initial_value: float = 0.0,
-        formatter: typing.Callable[[float], str] = lambda v: f"{v:.0f}",
+        formatter: typing.Callable[[T], str] = lambda v: f"{v:.0f}",
+        datatype: typing.Type[T] = float,
         increments: float = 1.0,
         min_value: float = 0,
         max_value: float = float("inf"),
 
         state: StateType = "normal",
         hover: bool = True,
-        command: typing.Union[typing.Callable[[float], typing.Any], None] = None,
+        command: typing.Union[typing.Callable[[T], typing.Any], None] = None,
         touchscreen_mode: MaybeObservable[bool] = False,
         round_corner_exclude: tuple[bool, bool, bool, bool] = (False, False, False, False),
 
@@ -92,6 +91,7 @@ class SpinBox(ctk.CTkFrame, Observable[float]):
         self._lifetime = LifetimeManager()
         self._entry_text = Observable[str]("")
         self._formatter = formatter
+        self._datatype = datatype
         self._increments = increments
         self._min_value = min_value
         self._max_value = max_value
@@ -99,8 +99,8 @@ class SpinBox(ctk.CTkFrame, Observable[float]):
         self._command = command
 
         with self._lifetime():
-            self._entry_text << self.observe(ignore_errors(lambda v: self._formatter(v)))
-            self << self._entry_text.observe(ignore_errors(float))
+            self.observe(ignore_errors(self.reformat))
+            self << self._entry_text.observe(ignore_errors(self._datatype)).observe(self._apply_limits)
             self >> self._handle_change
         
         # build UI
@@ -172,6 +172,7 @@ class SpinBox(ctk.CTkFrame, Observable[float]):
                     round_width_to_even_numbers=False,
                     #round_corner_exclude=(True, False, False, False)
                 ), sticky="ew")
+                self.entry.bind("<FocusOut>", self.reformat)
 
                 configure_next_column(uniform="buttons")
                 self.button_plus = add_column(tkl(CTkButtonEx)(
@@ -217,22 +218,62 @@ class SpinBox(ctk.CTkFrame, Observable[float]):
     def _minus_command(self) -> None:
         """ command handler for minus button """
         self.focus()
-        if self.value <= self._min_value:
-            return
-        self.value -= self._increments
+        self.value = self._datatype(self._apply_limits(self._value - self._increments))
 
     def _plus_command(self) -> None:
         """ command handler for plus button """
         self.focus()
-        if self.value >= self._max_value:
-            return
-        self.value += self._increments
+        self.value = self._datatype(self._apply_limits(self._value + self._increments))
     
-    def _handle_change(self, v: float) -> None:
+    def _apply_limits(self, v: T) -> T:
+        return min(max(v, self._min_value), self._max_value)
+    
+    def _handle_change(self, v: T) -> None:
         if self._command is not None:
             self._command(v)
+    
+    def reformat(self, *_) -> None:
+        """
+        causes the entry text to be regenerated according to 
+        the specified formatting rules, even if the value 
+        has not changed. This is useful when manually editing the entry
+        and is by default called whenever the entry loses focus.
+        If the value fails to be formatted, this causes an exception.
+        """
+        self._entry_text.value = self._formatter(self.value)
     
     @typing.override
     def destroy(self):
         self._lifetime.end()
         return super().destroy()
+
+    @typing.override
+    def configure(
+        self,
+        require_redraw=False,
+        **kwargs,
+    ):
+        """ 
+        Change configuration options dynamically. When changing any
+        MaybeObservable attributes with an Observable, the attribute
+        will only be set once and not observed. This is intended for
+        changing options without Observables.
+        """
+        if "min_value" in kwargs:
+            self._min_value = kwargs.pop("min_value")
+            self.value = self._datatype(self._apply_limits(self._value))
+        if "max_value" in kwargs:
+            self._max_value = kwargs.pop("max_value")
+            self.value = self._datatype(self._apply_limits(self._value))
+        # TODO: do the other config values as well 
+        super().configure(require_redraw, **kwargs)
+
+    @typing.override
+    def cget(self, attribute_name: str) -> typing.Any:
+        if attribute_name == "min_value":
+            return self._min_value
+        elif attribute_name == "max_value":
+            return self._max_value
+        # TODO: do other config values as well
+        else:
+            return super().cget(attribute_name)

@@ -235,6 +235,55 @@ def test_filter_if_true():
     assert observer_result == 4, "truthy value must be propagated"
     assert call_count == 2
 
+def test_filter_limits():
+    obs = Observable[int]()
+    observer_result = 5
+    call_count = 0
+    def observer(v: int):
+        nonlocal observer_result, call_count
+        observer_result = v
+        call_count += 1
+    
+    obs >> limits(2, 4) >> observer
+    assert observer_result == 5, "must not yet be modified bc initially empty"
+    assert call_count == 0
+
+    obs.value = 1
+    assert observer_result == 2, "should be below limit"
+    assert call_count == 1
+    obs.value = 6
+    assert observer_result == 4, "should be above limit"
+    assert call_count == 2
+    obs.value = 2
+    assert observer_result == 2, "should be in range"
+    assert call_count == 3
+    obs.value = 3
+    assert observer_result == 3, "should be in range"
+    assert call_count == 4
+    obs.value = 4
+    assert observer_result == 4, "should be in range"
+    assert call_count == 5
+
+def test_filter_ignore_errors():
+    obs = Observable[str]()
+    observer_result = 5
+    call_count = 0
+    def observer(v: int):
+        nonlocal observer_result, call_count
+        observer_result = v
+        call_count += 1
+    
+    obs >> ignore_errors(int) >> observer
+    assert observer_result == 5, "must not yet be modified bc initially empty"
+    assert call_count == 0
+
+    obs.value = "1"
+    assert observer_result == 1, "should be converted"
+    assert call_count == 1
+    obs.value = "abc"
+    assert observer_result == 1, "error should be ignored and update blocked"
+    assert call_count == 1, "should not have been called again"
+    
 def test_call_if_true():
     obs = Observable[int]()
     call_count = 0

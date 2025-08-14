@@ -57,6 +57,33 @@ def call_if_true(
     return obs
 
 
+def limits[T](
+    min_value: T | None = None,
+    max_value: T | None = None
+) -> ObserverFunction[T, T]:
+    """
+    Clamps the range of a (typically numerical) value
+    to between `min_value` and `max_value` (inclusive).
+    If one of the limits is None, not limit is enforced
+    on that end. 
+    
+    It is to note that this doesn't block 
+    update propagation if the limit is breached, instead
+    emitting the clamped value. Should the filter be called
+    with an empty value (...), the event is not clamped but instead
+    blocked.
+    """
+    def limiter(v: T) -> T:
+        if v == ...:
+            return v
+        if min_value is not None and v < min_value:
+            return min_value
+        if max_value is not None and v > max_value:
+            return max_value
+        return v
+    return limiter
+
+
 def ignore_errors[I, O](
     handler: ObserverFunction[I, O],
 ) -> ObserverFunction[I, O]:

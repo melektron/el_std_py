@@ -63,6 +63,10 @@ ConfigOptionName = Literal[
     "compound",
     "anchor",
     "wraplength",
+
+    # widgets.SpinBox
+    "min_value",
+    "max_value",
 ]
 
 
