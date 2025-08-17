@@ -14,6 +14,7 @@ import typing
 from .._deps import *
 
 from el.observable import MaybeObservable, maybe_observe, maybe_obs_value
+from el.callback_manager import CallbackManager
 from el.ctk_utils.types import *
 from el.ctk_utils import apply_to_config
 
@@ -68,6 +69,12 @@ class CTkEntryEx(ctk.CTkEntry):
         self._round_width_to_even_numbers = round_width_to_even_numbers  # rendering options for DrawEngine
         self._round_height_to_even_numbers = round_height_to_even_numbers  # rendering options for DrawEngine
         #      ^ these are set on the drawing engine in _draw(), as we cannot otherwise hook that easily before drawing.
+
+        # callback managers to provide other derived widgets the ability
+        # to add persistent bindings for <FocusIn> or <FocusOut> that would
+        # normally be removed when external bindings are removed
+        self.persistent_on_focus_in = CallbackManager[tk.Event | None]()
+        self.persistent_on_focus_out = CallbackManager[tk.Event | None]()
 
         super().__init__(master, **kwargs)
 
@@ -180,6 +187,16 @@ class CTkEntryEx(ctk.CTkEntry):
             #                        fill="orange" if self._desired_width == self._current_width else "red")
             #self._canvas.itemconfig("corner_cover_inner_parts",
             #                        fill="lime" if self._desired_width == self._current_width else "green")
+
+    @typing.override
+    def _entry_focus_in(self, event: tk.Event | None = None):
+        super()._entry_focus_in(event)
+        self.persistent_on_focus_in.notify_all(event)
+    
+    @typing.override
+    def _entry_focus_out(self, event: tk.Event | None = None):
+        super()._entry_focus_out(event)
+        self.persistent_on_focus_out.notify_all(event)
 
     @typing.override
     def configure(

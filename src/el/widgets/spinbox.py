@@ -172,7 +172,7 @@ class SpinBox[T](ctk.CTkFrame, Observable[T]):
                     round_width_to_even_numbers=False,
                     #round_corner_exclude=(True, False, False, False)
                 ), sticky="ew")
-                self.entry.bind("<FocusOut>", self.reformat)
+                self.entry.persistent_on_focus_out.register(self.reformat)
 
                 configure_next_column(uniform="buttons")
                 self.button_plus = add_column(tkl(CTkButtonEx)(
