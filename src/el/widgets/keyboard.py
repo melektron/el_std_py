@@ -198,8 +198,9 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
         id = self._next_target_reg_id
         self._next_target_reg_id += 1
         # create callbacks (use persistent interface to be not affected by external unbindings)
-        focus_in_reg = entry.persistent_on_focus_in.register(lambda _, i=id: self._focus_in_handler(i), weak=False)
-        focus_out_reg = entry.persistent_on_focus_out.register(lambda _, i=id: self._focus_out_handler(i), weak=False)
+        with self._lifetime():
+            focus_in_reg = entry.persistent_on_focus_in.register(lambda _, i=id: self._focus_in_handler(i), weak=False)
+            focus_out_reg = entry.persistent_on_focus_out.register(lambda _, i=id: self._focus_out_handler(i), weak=False)
         # save configuration
         self._targets[id] = _EditTarget(
             entry=entry,
@@ -301,9 +302,9 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
         target = self._targets.get(id, None)
         if target is None:
             return
-        self._start_editing_entry(target)
         if focus:
             target.entry.focus()
+        self._start_editing_entry(target)
 
     def _focus_in_handler(self, id: RegistrationID) -> None:
         self.start_editing(id, focus=False)
@@ -381,6 +382,7 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
 
     @typing.override
     def destroy(self):
-        self.register_target()
         self._lifetime.end()
+        self._active_target = None
+        self._targets.clear()
         return super().destroy()
