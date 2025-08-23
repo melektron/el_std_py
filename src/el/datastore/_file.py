@@ -8,8 +8,8 @@ All rights reserved.
 This source code is licensed under the Apache-2.0 license found in the
 LICENSE file in the root directory of this source tree. 
 
-Class representing a data store "file" which can contain multiple
-cells.
+Class representing a data store "file" instance which can contain multiple
+cells. 
 """
 
 import pathlib
@@ -29,15 +29,15 @@ STORAGE_CONFIG = {"indent": 4}
 # Model Type can be any pydantic data model
 MT = typing.TypeVar("MT", bound=pydantic.BaseModel)
 
-_global_datastore_base_path = pathlib.Path("data")
-def set_datastore_base_path(path: pathlib.Path) -> None:
+_global_datastore_root = pathlib.Path("data")
+def set_datastore_root(path: pathlib.Path) -> None:
     """
-    Configures the base filesystem path that datastore objects paths
+    Configures the root filesystem path that datastore objects paths
     are relative to. This should be the folder in which datastore objects
     should be saved.
     """
-    global _global_datastore_base_path
-    _global_datastore_base_path = path
+    global _global_datastore_root
+    _global_datastore_root = path
 
 
 class File(typing.Generic[MT]):
@@ -252,7 +252,7 @@ class File(typing.Generic[MT]):
         path = path.copy()
         path[-1] += ".ext"
 
-        storage_path = _global_datastore_base_path
+        storage_path = _global_datastore_root
         for el in path:
             storage_path = storage_path / cls._sanitize_path_element(el)
         return storage_path.with_suffix(f".{extension}")
