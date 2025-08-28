@@ -27,6 +27,7 @@ from el.widgets.toolbar_button import ToolbarButton
 from el.lifetime import LifetimeManager, AbstractRegistry, RegistrationID
 from el.callback_manager import CallbackManager
 from el.observable import MaybeObservable
+from el.assets import builtin
 
 from ._deps import *
 
@@ -51,20 +52,34 @@ class _EditTarget:
     focus_out_reg: RegistrationID
 
 
+class SpecialFunction(enum.Enum):
+    """Enum of special key functions"""
+    DELETE = enum.auto()
+    ABORT = enum.auto()
+    SUBMIT = enum.auto()
+
+_sf_to_default_asset_name = {
+    SpecialFunction.DELETE: "backspace.png",
+    SpecialFunction.ABORT: "cancel.png",
+    SpecialFunction.SUBMIT: "enter.png",
+}
+
+
 @dataclasses.dataclass(frozen=True)
 class Key:
-    value: str
+    value: str | SpecialFunction
     height: int = 1
     width: int = 1
+    text: str | None = None
     icon: ctk.CTkImage | None = None
     color: ctku.Color | None = None
 
 
 default_layout: list[list[Key]] = [
-    [Key("1"),          Key("2"),   Key("3"),   Key("D")],
-    [Key("4"),          Key("5"),   Key("6"),   Key("X")],
-    [Key("7"),          Key("8"),   Key("9"),   Key("R", height=2)],
-    [Key("0", width=2), ...,        Key("."),   ...],
+    [Key("1"),          Key("2"),   Key("3"),   Key(SpecialFunction.DELETE, text="D")           ],
+    [Key("4"),          Key("5"),   Key("6"),   Key(SpecialFunction.ABORT, text="X")            ],
+    [Key("7"),          Key("8"),   Key("9"),   Key(SpecialFunction.SUBMIT, height=2, text="R") ],
+    [Key("0", width=2), ...,        Key("."),   ...                                     ],
 ]
 
 
@@ -79,7 +94,7 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
     ):
         super().__init__(master, fg_color="transparent")
         self._lifetime = LifetimeManager()
-        
+
         self._btn_width = btn_width
         self._btn_height = btn_height
         self._layout = layout
@@ -89,14 +104,15 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
         self._rows = len(self._layout)
         self._cols = len(self._layout[0])
         self._child_buttons: list[ToolbarButton] = []
-        
+
+        self._sf_icon_cache: dict[SpecialFunction, ctk.CTkImage] = {}
+
         self._next_target_reg_id: RegistrationID = 0
         self._targets: dict[RegistrationID, _EditTarget] = {}
         self._active_target: _EditTarget | None = None
         self._restore_text: str = ""
-        
 
-        self.on_keypress_fallback = CallbackManager[str]()
+        self.on_keypress_fallback = CallbackManager[str | SpecialFunction]()
 
         self._draw_buttons()
 
@@ -109,7 +125,7 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
         # all cells equal weights
         self.grid_rowconfigure(list(range(self._rows)), weight=1)
         self.grid_columnconfigure(list(range(self._cols)), weight=1)
-        
+
         # draw all the button keys
         for row in range(self._rows):
             for col in range(self._cols):
@@ -123,10 +139,10 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
                         self, 
                         width=self._btn_width * key.width + self._gap_size * (key.width - 1),
                         height=self._btn_height * key.height + self._gap_size * (key.height - 1),
-                        text=key.value if key.icon is None else "",
+                        text=key.text if key.text is not None else (str(key.value) if key.icon is None else ""),
                         image=key.icon,
                         fg_color=key.color,
-                        touchscreen_mode=self._touchscreen_mode
+                        touchscreen_mode=self._touchscreen_mode,
                     )
                 button.configure(command=lambda k=key: self._handle_key(k))
                 button.grid(
@@ -214,7 +230,7 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
             focus_out_reg=focus_out_reg,
         )
         self._ar_register(id)
-        
+
         return id
 
     def unregister_target(
@@ -246,7 +262,7 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
     @typing.override
     def _ar_unregister(self, id: RegistrationID) -> None:
         return self.unregister_target(id)
-    
+
     def _start_editing_entry(self, t: _EditTarget) -> None:
         # already active -> do nothing
         if self._active_target is t:
@@ -273,7 +289,7 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
         # clear selection and remove active entry
         self._active_target.entry.select_clear()
         self._active_target = None
-    
+
     def _perform_abort(self) -> None:
         # restore text to initial value and call abort callback
         self._active_target.entry.delete(0, tk.END)
@@ -285,7 +301,7 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
         # call submit callback
         if self._active_target.on_submit is not None:
             self._active_target.on_submit()
-    
+
     def start_editing(self, id: RegistrationID, focus: bool = True) -> None:
         """
         Manually triggers a certain entry to be edited.
@@ -327,7 +343,7 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
                 self._perform_submit()
             # end editing by deselecting all
             self._end_editing_entry(focus_pull=True)
-    
+
     def _focus_out_handler(self, id: RegistrationID) -> None:
         target = self._targets.get(id, None)
         if target is None:
@@ -335,7 +351,7 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
         # only respect callbacks from the active target, so no other
         # entry can accidentally cause edit ending
         if self._active_target is target:
-            #self._master.focus()
+            # self._master.focus()
             # if configured so, abort edit, otherwise submit
             if self._active_target.abort_on_focus_out:
                 self._perform_abort()
@@ -352,17 +368,17 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
 
         # then we check for specific actions that would apply to active entries
 
-        if key.value == "R":  # Return
+        if key.value == SpecialFunction.SUBMIT:
             if self._active_target is not None:
                 self._perform_submit()
                 self._end_editing_entry(focus_pull=True)
-            
-        elif key.value == "X":    # Abort
+
+        elif key.value == SpecialFunction.ABORT:
             if self._active_target is not None:
                 self._perform_abort()
                 self._end_editing_entry(focus_pull=True)
-            
-        elif key.value == "D": # Delete
+
+        elif key.value == SpecialFunction.DELETE:
             if self._active_target is not None:
                 # delete selection if present
                 if self._active_target.entry.select_present():
@@ -371,7 +387,7 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
                 else:
                     cursor_index = self._active_target.entry.index(ctk.INSERT)
                     self._active_target.entry.delete(max(cursor_index - 1, 0), cursor_index)
-        
+
         else:   # insert
             if self._active_target is not None:
                 if self._active_target.entry.select_present():

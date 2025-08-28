@@ -35,3 +35,4 @@
 - added working implementation of `ComposedObservable` and the `compose` helper function to `el.observable`
 - added bidirectional linking support to observables using the `link()` method
 - added module `el.assets` to provide an `AssetManager` class and some builtin assets
+- added module `el.widgets.keyboard`: configurable on-screen-keyboard for editing `CTkEntryEx` and derivatives on touchscreens

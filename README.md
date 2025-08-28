@@ -46,6 +46,8 @@ Despite all these disclaimers, if you have utilities, changes, fixes, etc. that 
 ## 3rd party components and attribution
 
 This library contains some third-party components requiring attribution, mainly assets for UI widgets.
+These components are exempt from the terms of [LICENSE](LICENSE) and instead fall under the terms
+of their respective licenses as provided by their authors.
 
 Assets/Icons: 
 - <a href="https://www.flaticon.com/free-icons/cross" title="cross icons">Cross icons created by Catalin Fertu - Flaticon</a>
