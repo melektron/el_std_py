@@ -85,7 +85,7 @@ class AssetManager:
     def __init__(
         self, 
         base_path: Path | None = None,
-        default_btn_icon_size: tuple[int, int] = (24, 24)
+        default_btn_icon_size: tuple[int, int] = (20, 20)
     ) -> None:
         """Creates an asset manager to load assets.
 
@@ -98,7 +98,8 @@ class AssetManager:
         base_path : Path
             Directory to search for assets.
         default_btn_icon_size : tuple[int, int], optional
-            Default size for button icons in pixels, by default 24x24.
+            Default size for button icons in pixels, by default 20x20
+            which nicely fits the default CTk button height of 28.
             CTk widget scaling will be applied to this, so
             the actual size on screen may differ. 
         """
