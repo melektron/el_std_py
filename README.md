@@ -11,7 +11,7 @@ el-std-py is an assortment of useful python utilities complementing some builtin
 
 ## Versions
 
-I am currently targeting Python 3.12 for this library. Although some things might work in earlier versions, there is no guarantee, and I will not refrain from using the latest python features.
+I am currently targeting Python 3.13 for this library. Although some things might work in earlier versions, there is no guarantee, and I will not refrain from using the latest python features.
 
 
 ## Features and Documentation
@@ -43,3 +43,11 @@ While I might write more comprehensive documentation for some features along the
 
 Despite all these disclaimers, if you have utilities, changes, fixes, etc. that you think might be nice to include here, feel free to create issues/PRs.
 
+## 3rd party components and attribution
+
+This library contains some third-party components requiring attribution, mainly assets for UI widgets.
+
+Assets/Icons: 
+- <a href="https://www.flaticon.com/free-icons/cross" title="cross icons">Cross icons created by Catalin Fertu - Flaticon</a>
+- <a href="https://www.flaticon.com/free-icons/backspace" title="backspace icons">Backspace icons created by Abdul-Aziz - Flaticon</a>
+- <a href="https://www.flaticon.com/free-icons/enter" title="enter icons">Enter icons created by Md Tanvirul Haque - Flaticon</a>

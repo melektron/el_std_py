@@ -34,3 +34,4 @@
   - observable
 - added working implementation of `ComposedObservable` and the `compose` helper function to `el.observable`
 - added bidirectional linking support to observables using the `link()` method
+- added module `el.assets` to provide an `AssetManager` class and some builtin assets
