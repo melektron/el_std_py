@@ -1,6 +1,6 @@
 [project]
 name = "el-std-py"
-version = "0.3.0"
+version = "0.4.0"
 authors = [
   { name="melektron", email="matteo@elektron.work" },
 ]
@@ -8,7 +8,7 @@ description = "An assortment of useful python utilities complementing some built
 readme = {file = "README.md", content-type = "text/markdown"}
 requires-python = ">=3.12"
 classifiers = [
-    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]

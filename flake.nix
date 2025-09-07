@@ -16,7 +16,7 @@
         packages.default = pkgs.python313Packages.buildPythonPackage
         {
           pname = "el-std-py";
-          version = "0.3.0";
+          version = "0.4.0";
           pyproject = true;
 
           src = ./.;
