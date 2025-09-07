@@ -48,6 +48,10 @@ class SavableModel(pydantic.BaseModel):
     @property
     def model_file_path(self):
         return self._model_file_path
+    
+    @model_file_path.setter
+    def model_file_path(self, v: Path | None):
+        self._model_file_path = v
 
     @classmethod
     def model_load_from_disk(cls, filepath: Path) -> typing.Self:

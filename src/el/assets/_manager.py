@@ -131,7 +131,7 @@ class AssetManager:
         Returns
         -------
         ctk.CTkImage
-            Image object to be passed to CTkButton.
+            Image object to be passed to CTkButton or another widget.
         """
         
         if size is None:
@@ -190,7 +190,7 @@ class AssetManager:
         Returns
         -------
         ctk.CTkImage
-            Image object to be passed to CTkButton.
+            Image object to be passed to CTkButton or another widget.
         """
 
         if size is None:
