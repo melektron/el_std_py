@@ -36,6 +36,8 @@
             pkgs.python313Packages.numpy
             pkgs.python313Packages.pytest
             pkgs.python313Packages.pytest-asyncio
+            pkgs.python313Packages.build
+            pkgs.python313Packages.twine
           ];
           shellHook = ''
             #source .venv/bin/activate

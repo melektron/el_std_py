@@ -41,6 +41,7 @@ class _EditTarget:
     Representation of an entry that is editable using the
     keyboard.
     """
+    id: RegistrationID
     entry: ex.CTkEntryEx
     select_all_on_begin: bool
     abort_on_focus_out: bool
@@ -219,6 +220,7 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
             focus_out_reg = entry.persistent_on_focus_out.register(lambda _, i=id: self._focus_out_handler(i), weak=False)
         # save configuration
         self._targets[id] = _EditTarget(
+            id=id,
             entry=entry,
             select_all_on_begin=select_all_on_begin,
             abort_on_focus_out=abort_on_focus_out,
@@ -343,6 +345,19 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
                 self._perform_submit()
             # end editing by deselecting all
             self._end_editing_entry(focus_pull=True)
+
+    @property
+    def active_target_id(self) -> RegistrationID | None:
+        """
+        Returns
+        -------
+        RegistrationID | None
+            The registration ID of the target that is currently being edited
+            or None if no target is currently being edited.
+        """
+        if self._active_target is None:
+            return None
+        return self._active_target.id
 
     def _focus_out_handler(self, id: RegistrationID) -> None:
         target = self._targets.get(id, None)

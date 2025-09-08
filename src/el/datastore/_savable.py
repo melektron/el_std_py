@@ -19,25 +19,30 @@ from pathlib import Path
 from ._deps import *
 
 
-class ModelDumpJsonOptions(typing.TypedDict):
-    indent: int | None = None,
-    include: pydantic.main.IncEx | None = None,
-    exclude: pydantic.main.IncEx | None = None,
-    context: typing.Any | None = None,
-    by_alias: bool = False,
-    exclude_unset: bool = False,
-    exclude_defaults: bool = False,
-    exclude_none: bool = False,
-    round_trip: bool = False,
-    warnings: bool | typing.Literal['none', 'warn', 'error'] = True,
-    serialize_as_any: bool = False,
+class ModelDumpJsonOptions(typing.TypedDict, total=False):
+    indent: int | None
+    include: pydantic.main.IncEx | None
+    exclude: pydantic.main.IncEx | None
+    context: typing.Any | None
+    by_alias: bool
+    exclude_unset: bool
+    exclude_defaults: bool
+    exclude_none: bool
+    round_trip: bool
+    warnings: bool | typing.Literal['none', 'warn', 'error']
+    serialize_as_any: bool
 
+class SavableModelConfigDict(pydantic.ConfigDict):
+    savable_default_dump_options: ModelDumpJsonOptions
+    """Model setting for the default options passed to model_dump_json() when saving"""
 
 class SavableModel(pydantic.BaseModel):
     """
     Model base class that adds functions to easily load models from
     files on disk and save them to files on disk.
     """
+
+    model_config: typing.ClassVar[SavableModelConfigDict] = SavableModelConfigDict()
 
     @typing.override
     def model_post_init(self, __context):
@@ -90,6 +95,18 @@ class SavableModel(pydantic.BaseModel):
         inst._model_file_path = filepath  # save the file path we loaded from
         return inst
 
+    def _get_dump_options(self, user_opts: ModelDumpJsonOptions) -> ModelDumpJsonOptions:
+        """
+        Creates model dump options by overriding with 
+        the provided user opts
+        """
+
+        if "savable_default_dump_options" not in self.model_config:
+            return user_opts
+        opts = self.model_config["savable_default_dump_options"].copy()
+        opts.update(user_opts)
+        return opts
+
     def model_save_to_disk(self, **kwargs: typing.Unpack[ModelDumpJsonOptions]) -> bool:
         """
         Saves the model to the file path it was loaded from.
@@ -113,7 +130,7 @@ class SavableModel(pydantic.BaseModel):
         self._model_file_path.parent.mkdir(parents=True, exist_ok=True)
 
         # attempt to write to file
-        self._model_file_path.write_text(self.model_dump_json(**kwargs))
+        self._model_file_path.write_text(self.model_dump_json(**self._get_dump_options(kwargs)))
 
         return True
     
@@ -131,11 +148,11 @@ class SavableModel(pydantic.BaseModel):
         # create directory if not already present
         new_file_path.parent.mkdir(parents=True, exist_ok=True)
         # attempt to write to file
-        new_file_path.write_text(self.model_dump_json(**kwargs))
+        new_file_path.write_text(self.model_dump_json(**self._get_dump_options(kwargs)))
         # if successful, save the path
         self._model_file_path = new_file_path
     
-    def model_delete_from_disk(self, new_file_path: Path, **kwargs: typing.Unpack[ModelDumpJsonOptions]):
+    def model_delete_from_disk(self):
         """
         Deletes the current model file on disk and clears
         the internal model file path.

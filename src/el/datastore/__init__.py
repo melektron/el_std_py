@@ -73,4 +73,4 @@ without you even noticing.
 from ._file import File, set_datastore_root
 from ._specialized import specialized_file
 from ._versioning import VersionedModel
-from ._savable import SavableModel
+from ._savable import SavableModel, ModelDumpJsonOptions

@@ -1,38 +1,9 @@
-- added ```ResetSemaphore``` to ```async_tools```
-- added ```ToolbarButton``` to ```widgets```
-- added the ability to specify a file extension on ```el.datastore``` files and specialized files
-- added the ability to change autosave behavior of ```el.datastore``` files and specialized files
-- added the ability to access public  ```el.datastore.File``` attributes on specialized files
-- generalized parameter passing of ```el.datastore.File``` and ```el.datastore.specialized_file```
-- added ```el.widgets.value_box.ValueBox```
-- added module ```el.datastore.savable```
-- renamed `el.datastore.set_datastore_base_path` to `el.datastore.set_datastore_root` to prevent confusion with specialized_file's base path
-- added module `el.nixos_ctk_font_fix`
-- added support for connecting `el.terminal.TerminalController` to non-ttys. 
-  - Interactivity (prompt, command handling) will now automatically be disabled when connecting stdin to a non-tty (e.g. when using .desktop files or cron jobs) instead of the application crashing.
-- added module `el.tkml`: Tkinter wrappers to build UIs more easily using a declarative ish "markup language" using context managers
-  - `el.tkml.adapters` contains adapter functions to integrate legacy tkinter widgets and variables
-  - `el.tkml.pack` contains a pack wrapper 
-  - `el.tkml.grid` contains contextual or layout-based grid wrappers to simplify developer experience
-- added `el.timers.WDTimer.active` property
-- added `el.observable.filters.throttle` and a new `StatefulFilter` API to implement it and similar time-based filters
-- added `el.lifetime`: A system to manage Callback and observable lifetimes using a `LifetimeManager`:
-  - This system currently works for `el.callback_manager.CallbackManager` and `el.observable.Observable`
-  - With this change, `el.callback_manager.CallbackID` has been removed and is to be replaced with `el.lifetime.RegistrationID`
-  - The system is extensible, other registries can be managed as well by implementing `el.lifetime.AbstractRegistry`
-- `el.observable.filter.call_if_true()` now supports a `False` case
-- added `MaybeObservable` type and the accompanying functions `maybe_observe` and `maybe_obs_value` to `el.observable`
-- `el.observable.Observable.observe()` now has a flag to disable initial updates
-- added module `el.widgets.ctkex`: A collection of CTk Widgets with extended functionality such as touchscreen mode. (Unlike other `el.widgets`, these are not new, specialized widgets, but just regular CTk widgets with some additional functionality)
-  - option to selectively disable corner rounding on `CTkEntryEx` and `CTkButtonEx`
-  - patched support for `background_corner_colors`, `round_height_to_even_numbers`, `round_width_to_even_numbers` arguments (from `CTkButton`) into `CTkEntryEx` 
-- added `spinbox.SpinBox` to `el.widgets`
-  - configurable increments and formatting
-  - text input and button input possible
-  - configurable text/icons on buttons
-  - child-widgets exposed for further customization
-  - observable
-- added working implementation of `ComposedObservable` and the `compose` helper function to `el.observable`
-- added bidirectional linking support to observables using the `link()` method
-- added module `el.assets` to provide an `AssetManager` class and some builtin assets
-- added module `el.widgets.keyboard`: configurable on-screen-keyboard for editing `CTkEntryEx` and derivatives on touchscreens
+## Bugfixes
+
+
+## Enhancements
+- ability to see what if any target is currently being edited by an `el.widgets.keyboard.Keyboard` using the `active_target_id` property.
+- added ClassVar `model_dump_default_options` to `el.datastore.SavableModel` to specify default options used for saving files (like indentation).
+
+
+## New Features
