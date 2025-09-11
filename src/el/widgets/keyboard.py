@@ -28,6 +28,7 @@ from el.lifetime import LifetimeManager, AbstractRegistry, RegistrationID
 from el.callback_manager import CallbackManager
 from el.observable import MaybeObservable
 from el.assets import builtin
+from el.base import filter_kwargs
 
 from ._deps import *
 
@@ -59,38 +60,49 @@ class SpecialFunction(enum.Enum):
     ABORT = enum.auto()
     SUBMIT = enum.auto()
 
-_sf_to_default_asset_name = {
-    SpecialFunction.DELETE: "backspace.png",
-    SpecialFunction.ABORT: "cancel.png",
-    SpecialFunction.SUBMIT: "enter.png",
-}
 
-
-@dataclasses.dataclass(frozen=True)
-class Key:
-    value: str | SpecialFunction
-    height: int = 1
-    width: int = 1
+@dataclasses.dataclass(frozen=True, eq=False)
+class Key[CAT = str]:
+    value: str | SpecialFunction | CAT
+    h: int = 1
+    w: int = 1
     text: str | None = None
     icon: ctk.CTkImage | None = None
     color: ctku.Color | None = None
 
 
-default_layout: list[list[Key]] = [
-    [Key("1"),          Key("2"),   Key("3"),   Key(SpecialFunction.DELETE, text="D")           ],
-    [Key("4"),          Key("5"),   Key("6"),   Key(SpecialFunction.ABORT, text="X")            ],
-    [Key("7"),          Key("8"),   Key("9"),   Key(SpecialFunction.SUBMIT, height=2, text="R") ],
-    [Key("0", width=2), ...,        Key("."),   ...                                     ],
+@dataclasses.dataclass
+class KeyOverlay[CAT = str]:
+    """
+    Class used for keyboard layer maps to change the visual
+    and functional properties of certain keys when an overlay
+    layer is active.
+    """
+    value: str | SpecialFunction | CAT | None = None
+    text: str | None = None
+    icon: ctk.CTkImage | None = None
+    color: ctku.Color | None = None
+
+
+type OverlayLayerType[CAT = str] = dict[str | SpecialFunction | CAT, KeyOverlay[CAT]]
+
+
+LAYOUT_DEFAULT: list[list[Key]] = [
+    [Key("1"),              Key("2"),   Key("3"),   Key(SpecialFunction.DELETE, text="D")       ],
+    [Key("4"),              Key("5"),   Key("6"),   Key(SpecialFunction.ABORT, text="X")        ],
+    [Key("7"),              Key("8"),   Key("9"),   Key(SpecialFunction.SUBMIT, h=2, text="R")  ],
+    [Key("0", w=2), ...,    Key("."),   ...,        ...                                         ],
 ]
 
 
-class Keyboard(ex.CTkFrameEx, AbstractRegistry):
+class Keyboard[CAT = str](ex.CTkFrameEx, AbstractRegistry):
+    
     def __init__(self, 
         master: tk.Misc,
         btn_width: int = 28,
         btn_height: int = 28,
-        gap_size: int = 4,
-        layout: list[list[Key]] = default_layout,
+        gap_size: int = 3,
+        layout: list[list[Key[CAT]]] = LAYOUT_DEFAULT,
         touchscreen_mode: MaybeObservable[bool] = False,
     ):
         super().__init__(master, fg_color="transparent")
@@ -104,28 +116,46 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
 
         self._rows = len(self._layout)
         self._cols = len(self._layout[0])
-        self._child_buttons: list[ToolbarButton] = []
+        self._child_buttons: dict[Key[CAT], ToolbarButton] = {}
 
-        self._sf_icon_cache: dict[SpecialFunction, ctk.CTkImage] = {}
+        self._active_overlay_layer: OverlayLayerType[CAT] | None = None
 
         self._next_target_reg_id: RegistrationID = 0
         self._targets: dict[RegistrationID, _EditTarget] = {}
         self._active_target: _EditTarget | None = None
         self._restore_text: str = ""
 
-        self.on_keypress_fallback = CallbackManager[str | SpecialFunction]()
+        self.on_keypress_fallback = CallbackManager[str | SpecialFunction | CAT]()
+        self.on_pre_insert = CallbackManager[str]()
+        self.on_post_insert = CallbackManager[str]()
+        self.on_custom_action = CallbackManager[CAT]()
 
         self._draw_buttons()
 
+    @staticmethod
+    def _select_button_text(
+        value: str | SpecialFunction | CAT,
+        text: str | None, 
+        icon: ctk.CTkImage | None = None
+    ) -> str:
+        """Selects the text of a button depending on value, text and icon"""
+        return (
+            text  if text is not None 
+            else (
+                str(value) if icon is None 
+                else ""
+            )
+        )
+
     def _draw_buttons(self) -> None:
         # in case of redraw
-        for btn in self._child_buttons:
+        for btn in self._child_buttons.values():
             btn.destroy()
         self._child_buttons.clear()
 
         # all cells equal weights
-        self.grid_rowconfigure(list(range(self._rows)), weight=1)
-        self.grid_columnconfigure(list(range(self._cols)), weight=1)
+        self.grid_rowconfigure(list(range(self._rows)), weight=1, minsize=self._btn_height)
+        self.grid_columnconfigure(list(range(self._cols)), weight=1, minsize=self._btn_width)
 
         # draw all the button keys
         for row in range(self._rows):
@@ -138,9 +168,9 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
                 with self._lifetime():
                     button = ToolbarButton(
                         self, 
-                        width=self._btn_width * key.width + self._gap_size * (key.width - 1),
-                        height=self._btn_height * key.height + self._gap_size * (key.height - 1),
-                        text=key.text if key.text is not None else (str(key.value) if key.icon is None else ""),
+                        width=self._btn_width * key.w + self._gap_size * (key.w - 1),
+                        height=self._btn_height * key.h + self._gap_size * (key.h - 1),
+                        text=self._select_button_text(key.value, key.text, key.icon),
                         image=key.icon,
                         fg_color=key.color,
                         touchscreen_mode=self._touchscreen_mode,
@@ -148,9 +178,9 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
                 button.configure(command=lambda k=key: self._handle_key(k))
                 button.grid(
                     row=row,
-                    rowspan=key.height,
+                    rowspan=key.h,
                     column=col,
-                    columnspan=key.width,
+                    columnspan=key.w,
                     padx=(
                         0 if col == 0 else self._gap_size,
                         0, 
@@ -160,6 +190,58 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
                         0, 
                     )
                 )
+                self._child_buttons[key] = button
+
+    def _update_buttons_from_overlay(self) -> None:
+        # go through all the buttons and update their visual properties
+        for key, button in self._child_buttons.items():
+            if (
+                self._active_overlay_layer is not None
+                and key.value in self._active_overlay_layer
+            ):
+                # load overlays if an overlay layer is enabled
+                overlay = self._active_overlay_layer[key.value]
+                value = overlay.value if overlay.value is not None else key.value
+                text = overlay.text if overlay.text is not None else key.text
+                icon = overlay.icon if overlay.icon is not None else key.icon
+                color = overlay.color if overlay.color is not None else key.color
+                
+                button.configure(
+                    text=self._select_button_text(value, text, icon),
+                    image=icon,
+                    fg_color=color if color is not None else ctk.ThemeManager.theme["CTkButton"]["fg_color"],
+                )
+            else:
+                # otherwise just load the normal key values
+                button.configure(
+                    text=self._select_button_text(key.value, key.text, key.icon),
+                    image=key.icon,
+                    fg_color=key.color if key.color is not None else ctk.ThemeManager.theme["CTkButton"]["fg_color"],
+                )
+                
+
+    def set_overlay_layer(
+        self, overlay: OverlayLayerType[CAT] | None
+    ) -> None:
+        """
+        Sets or disables a keyboard overlay layer to change the function or look 
+        of certain keys on the keyboard (e.g. to implement modifiers like shift or alt)
+
+        Parameters
+        ----------
+        overlay : dict[str  |  SpecialFunction  |  CAT, KeyOverlay[CAT]] | None
+            The overlay to apply. This comes in the form of dictionary that maps
+            the key values of the keyboard layout to potential KeyOverlay object,
+            that overrides certain properties (visual and/or functional). 
+            When setting this to None, the default layout is shown again (initial condition).
+        """
+        self._active_overlay_layer = overlay
+        self._update_buttons_from_overlay()
+
+    @property
+    def active_overlay_layer(self) -> OverlayLayerType[CAT] | None:
+        """the active overlay layer or None if none is active"""
+        return self._active_overlay_layer
 
     def register_target(
         self, 
@@ -375,25 +457,34 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
             # end editing by deselecting all
             self._end_editing_entry()   # no focus pull, as we already are de-focused here
 
-    def _handle_key(self, key: Key) -> None:
+    def _handle_key(self, key: Key[CAT]) -> None:
+        # apply overlay if applicable
+        if (self._active_overlay_layer is not None 
+            and key.value in self._active_overlay_layer
+            and (aol := self._active_overlay_layer[key.value]) is not None
+        ):
+            value = aol.value
+        else:
+            value = key.value
+        
         # if no target is active, we call the fallback handler at the
         # beginning, which may cause a specific entry to be activated
         if self._active_target is None:
-            self.on_keypress_fallback.notify_all(key.value)
+            self.on_keypress_fallback.notify_all(value)
 
         # then we check for specific actions that would apply to active entries
 
-        if key.value == SpecialFunction.SUBMIT:
+        if value == SpecialFunction.SUBMIT:
             if self._active_target is not None:
                 self._perform_submit()
                 self._end_editing_entry(focus_pull=True)
 
-        elif key.value == SpecialFunction.ABORT:
+        elif value == SpecialFunction.ABORT:
             if self._active_target is not None:
                 self._perform_abort()
                 self._end_editing_entry(focus_pull=True)
 
-        elif key.value == SpecialFunction.DELETE:
+        elif value == SpecialFunction.DELETE:
             if self._active_target is not None:
                 # delete selection if present
                 if self._active_target.entry.select_present():
@@ -403,13 +494,19 @@ class Keyboard(ex.CTkFrameEx, AbstractRegistry):
                     cursor_index = self._active_target.entry.index(ctk.INSERT)
                     self._active_target.entry.delete(max(cursor_index - 1, 0), cursor_index)
 
-        else:   # insert
+        elif isinstance(value, str):   # insert
+            self.on_pre_insert.notify_all(value)
             if self._active_target is not None:
                 if self._active_target.entry.select_present():
                     self._active_target.entry.delete(ctk.SEL_FIRST, ctk.SEL_LAST)
-                    self._active_target.entry.insert(ctk.ANCHOR, key.value)
+                    self._active_target.entry.insert(ctk.ANCHOR, value)
                 else:
-                    self._active_target.entry.insert(ctk.INSERT, key.value)
+                    self._active_target.entry.insert(ctk.INSERT, value)
+            self.on_post_insert.notify_all(value)
+        
+        else:   # custom action, forward to custom action handler
+            self.on_custom_action.notify_all(value)
+
 
     @typing.override
     def destroy(self):
