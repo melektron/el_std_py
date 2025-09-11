@@ -18,5 +18,7 @@ from ._segmented_button_ex import CTkSegmentedButtonEx, CTkSegmentedButtonExPass
 from ._combo_box_ex import CTkComboBoxEx, CTkComboBoxExPassthroughArgs
 from ._switch_ex import CTkSwitchEx, CTkSwitchExPassthroughArgs
 from ._entry_ex import CTkEntryEx, CTkEntryExPassthroughArgs
-from ._frame_ex import CTkFrameEx
-from ._scrollable_frame_ex import CTkScrollableFrameEx
+from ._frame_ex import CTkFrameEx, CTkFrameExPassthroughArgs
+from ._scrollable_frame_ex import CTkScrollableFrameEx, CTkScrollableFrameExPassthroughArgs
+from ._checkbox_ex import CTkCheckBoxEx, CTkCheckBoxExPassthroughArgs
+from ._textbox_ex import CTkTextboxEx, CTkTextboxExPassthroughArgs

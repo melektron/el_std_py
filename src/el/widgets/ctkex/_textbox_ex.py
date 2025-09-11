@@ -2,7 +2,7 @@
 ELEKTRON © 2025 - now
 Written by melektron
 www.elektron.work
-27.07.25, 22:09
+11.09.25, 21:37
 All rights reserved.
 
 This source code is licensed under the Apache-2.0 license found in the
@@ -14,42 +14,42 @@ import math
 import typing
 from .._deps import *
 
-from el.observable import MaybeObservable, maybe_observe, maybe_obs_value
+from el.observable import Observable, MaybeObservable, maybe_observe, maybe_obs_value
 from el.callback_manager import CallbackManager
 from el.ctk_utils.types import *
 from el.ctk_utils import apply_to_config
 
 
-class _CTkEntryPassthroughArgs(typing.TypedDict, total=False):
+class _CTkTextboxPassthroughArgs(typing.TypedDict, total=False):
     width: int
     height: int
     corner_radius: typing.Optional[int]
     border_width: typing.Optional[int]
+    border_spacing: int
 
     bg_color: Color
     fg_color: typing.Optional[Color]
     border_color: typing.Optional[Color]
     text_color: typing.Optional[Color]
-    placeholder_text_color: typing.Optional[Color]
+    scrollbar_button_color: typing.Optional[Color]
+    scrollbar_button_hover_color:  typing.Optional[Color]
 
-    textvariable: typing.Optional[tk.Variable]
-    placeholder_text: typing.Optional[str]
     font: typing.Optional[FontArgType]
     state: StateType
+    activate_scrollbars: bool
 
-    justify: JustifyType
 
-class CTkEntryExPassthroughArgs(_CTkEntryPassthroughArgs, total=False):
+class CTkTextboxExPassthroughArgs(_CTkTextboxPassthroughArgs, total=False):
     touchscreen_mode: MaybeObservable[bool]
     enable_select_all: bool
-
+    
     background_corner_colors: tuple[Color]
     round_width_to_even_numbers: bool
     round_height_to_even_numbers: bool
     round_corner_exclude: tuple[bool, bool, bool, bool]
 
 
-class CTkEntryEx(ctk.CTkEntry):
+class CTkTextboxEx(ctk.CTkTextbox):
 
     def __init__(self,
         master: tk.Widget,
@@ -59,7 +59,7 @@ class CTkEntryEx(ctk.CTkEntry):
         round_width_to_even_numbers: bool = True,
         round_height_to_even_numbers: bool = True,
         round_corner_exclude: tuple[bool, bool, bool, bool] = (False, False, False, False),
-        **kwargs: typing.Unpack[_CTkEntryPassthroughArgs]
+        **kwargs: typing.Unpack[_CTkTextboxPassthroughArgs]
     ):
         self._touchscreen_mode = maybe_obs_value(touchscreen_mode)
         maybe_observe(
@@ -78,22 +78,35 @@ class CTkEntryEx(ctk.CTkEntry):
 
         # callback managers to provide other derived widgets the ability
         # to add persistent bindings for <FocusIn> or <FocusOut> that would
-        # normally be removed when external bindings are removed
+        # normally be removed when external bindings are removed.
+        # This is added here for parity with CTkEntryEx, even though we don't
+        # need the internal callbacks here (have not placeholder text)
         self.persistent_on_focus_in = CallbackManager[tk.Event | None]()
         self.persistent_on_focus_out = CallbackManager[tk.Event | None]()
 
         super().__init__(master, **kwargs)
 
-        self._set_cursor()
+        # Observable to access and modify the text as a whole
+        self.text = Observable[str]("")
+        self._observable_update_prohibited = False
+        self.text.observe(self._update_from_observable)
+        # <<Modified>> bindings created in _create_bindings()
 
-    @typing.override
+        self._set_cursor()
+        # we create bindings for persistent_on_focus_xxx callback managers
+        self._create_bindings()
+
     def _create_bindings(self, sequence: str | None = None):
-        super()._create_bindings(sequence)
-        # add select all functionality
+        """Added for feature parity with CTkEntryEx"""
+        if sequence is None or sequence == "<FocusIn>":
+            self._textbox.bind("<FocusIn>", self._entry_focus_in)
+        if sequence is None or sequence == "<FocusOut>":
+            self._textbox.bind("<FocusOut>", self._entry_focus_out)
         sel_all_sequence = "<Command-a>" if sys.platform == "darwin" else "<Control-a>"
         if sequence is None or sequence == sel_all_sequence:
-            self._entry.bind(sel_all_sequence, self._on_control_a)
-
+            self._textbox.bind(sel_all_sequence, self._on_control_a)
+        if sequence is None or sequence == "<<Modified>>":
+            self._textbox.bind("<<Modified>>", self._on_text_modified)
 
     @typing.override
     def _draw(self, no_color_updates: bool = False):
@@ -117,6 +130,9 @@ class CTkEntryEx(ctk.CTkEntry):
 
         # then we draw the normal entry things
         super()._draw(no_color_updates)
+        # lower the background parts below the inner_parts and border_parts 
+        # that are lowered at the end of super()._draw()
+        self._canvas.tag_lower("background_parts")
 
         # then on top of that, we draw additional rectangles to cover up some
         # of the corners that we want to "exclude" from rounding.
@@ -205,18 +221,31 @@ class CTkEntryEx(ctk.CTkEntry):
 
     def select_all(self) -> None:
         """Selects the entire text and places the cursor at the end."""
-        self.select_range(0, ctk.END)
-        self.icursor(ctk.END)
+        self.tag_add("sel", "1.0", "end-1c")
+        self.mark_set("insert", "end-1c")
 
     @typing.override
+    def unbind(self, sequence: str = None, funcid: str = None):
+        """Added for feature parity with CTkEntryEx"""
+        super().unbind(sequence, funcid)
+        # recreate the internal matching bindings if they were removed
+        self._create_bindings(sequence=sequence)
+    
     def _entry_focus_in(self, event: tk.Event | None = None):
-        super()._entry_focus_in(event)
+        """Added for feature parity with CTkEntryEx"""
         self.persistent_on_focus_in.notify_all(event)
     
-    @typing.override
     def _entry_focus_out(self, event: tk.Event | None = None):
-        super()._entry_focus_out(event)
+        """Added for feature parity with CTkEntryEx"""
         self.persistent_on_focus_out.notify_all(event)
+
+    def _on_text_modified(self, _: tk.Event) -> None:
+        if self.edit_modified():
+            # we don't want to update insert our own changes again, otherwise the scrolling gets messed up
+            self._observable_update_prohibited = True   
+            self.text.value = self.get("1.0", "end-1c") # last character is implicit newline which we ignore
+            self._observable_update_prohibited = False
+            self.edit_modified(False)  # reset the modified flag
 
     def _on_control_a(self, e: tk.Event) -> None:
         if not self._enable_select_all:
@@ -224,11 +253,17 @@ class CTkEntryEx(ctk.CTkEntry):
         self.select_all()
         return "break"   # prevent default, otherwise control-a goes to start of line instead
 
+    def _update_from_observable(self, v: str) -> None:
+        if self._observable_update_prohibited:
+            return
+        self.delete("1.0", "end")
+        self.insert("1.0", v)
+
     @typing.override
     def configure(
         self,
         require_redraw=False,
-        **kwargs: typing.Unpack[CTkEntryExPassthroughArgs],
+        **kwargs: typing.Unpack[CTkTextboxExPassthroughArgs],
     ):
         """ 
         Change configuration options dynamically. When changing any
@@ -253,7 +288,7 @@ class CTkEntryEx(ctk.CTkEntry):
     def _set_cursor(self):
         if self._touchscreen_mode:
             self.configure(cursor="none")
-            self._entry.configure(cursor="none")
+            self._textbox.configure(cursor="none")
         else:
             self.configure(cursor="")
-            self._entry.configure(cursor="xterm")
+            self._textbox.configure(cursor="xterm")

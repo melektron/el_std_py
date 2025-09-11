@@ -39,11 +39,13 @@ _log = logging.getLogger(__name__)
 @dataclasses.dataclass
 class _EditTarget:
     """
-    Representation of an entry that is editable using the
-    keyboard.
+    Internal representation of an entry or textbox that is 
+    editable using the keyboard.
+    This also includes some methods to interact with the actual
+    widget, regardless of it's type
     """
     id: RegistrationID
-    entry: ex.CTkEntryEx
+    entry: ex.CTkEntryEx | ex.CTkTextboxEx
     select_all_on_begin: bool
     abort_on_focus_out: bool
     disable_focus_pull: bool
@@ -52,6 +54,75 @@ class _EditTarget:
     on_abort: typing.Callable[[], None] | None
     focus_in_reg: RegistrationID
     focus_out_reg: RegistrationID
+
+    def pull_focus_out(self) -> None:
+        """Pulls the focus of the entry onto it's master"""
+        self.entry.master.focus()
+
+    def get_text(self) -> str:
+        """Returns the text in the entry"""
+        if isinstance(self.entry, ex.CTkEntryEx):
+            return self.entry.get()
+        if isinstance(self.entry, ex.CTkTextboxEx):
+            return self.entry.text.value
+    
+    def set_text(self, text: str) -> None:
+        """Replaces text in the entry with text"""
+        if isinstance(self.entry, ex.CTkEntryEx):
+            self.entry.delete(0, tk.END)
+            self.entry.insert(0, text)
+        if isinstance(self.entry, ex.CTkTextboxEx):
+            self.entry.text.value = text
+    
+    def select_all(self) -> None:
+        """Selects the entire text and places cursor at end"""
+        if isinstance(self.entry, ex.CTkEntryEx):
+            self.entry.select_all()
+        if isinstance(self.entry, ex.CTkTextboxEx):
+            self.entry.select_all()
+            self.entry.see("insert")
+    
+    def select_clear(self) -> None:
+        """Clears the selection (selects nothing)"""
+        if isinstance(self.entry, ex.CTkEntryEx):
+            self.entry.select_clear()
+        if isinstance(self.entry, ex.CTkTextboxEx):
+            self.entry.tag_remove("sel", "1.0", tk.END)
+
+    def backspace(self) -> None:
+        """
+        Performs the action of the backspace key:
+        Delete selection if present, otherwise delete a character.
+        """
+        try:
+            # delete selection if present
+            sel_start = self.entry.index("sel.first")
+            sel_end = self.entry.index("sel.last")
+            self.entry.delete(sel_start, sel_end)
+        except Exception:
+            # otherwise delete one character
+            if isinstance(self.entry, ex.CTkEntryEx):
+                cursor_index = self.entry.index(ctk.INSERT)
+                self.entry.delete(max(cursor_index - 1, 0), cursor_index)
+            if isinstance(self.entry, ex.CTkTextboxEx):
+                cursor_index = self.entry.index(ctk.INSERT)
+                if cursor_index != "1.0":  # avoid deleting before start
+                    self.entry.delete(f"{cursor_index} -1c", cursor_index)
+    
+    def insert_text(self, text: str) -> None:
+        """Inserts text at the cursor or selection"""
+        if isinstance(self.entry, ex.CTkEntryEx):
+            if self.entry.select_present():
+                self.entry.delete(ctk.SEL_FIRST, ctk.SEL_LAST)
+                self.entry.insert(ctk.ANCHOR, text)
+            else:
+                self.entry.insert(ctk.INSERT, text)
+        if isinstance(self.entry, ex.CTkTextboxEx):
+            if self.entry.tag_ranges("sel"):
+                self.entry.delete("sel.first", "sel.last")
+                self.entry.insert(ctk.INSERT, text)
+            else:
+                self.entry.insert(ctk.INSERT, text)
 
 
 class SpecialFunction(enum.Enum):
@@ -245,7 +316,7 @@ class Keyboard[CAT = str](ex.CTkFrameEx, AbstractRegistry):
 
     def register_target(
         self, 
-        entry: ex.CTkEntryEx,
+        entry: ex.CTkEntryEx | ex.CTkTextboxEx,
         select_all_on_begin: bool = False,
         abort_on_focus_out: bool = False,
         disable_focus_pull: bool = False,
@@ -260,8 +331,9 @@ class Keyboard[CAT = str](ex.CTkFrameEx, AbstractRegistry):
 
         Parameters
         ----------
-        entry : ex.CTkEntryEx
-            entry to be edited (must be an CTkEntryEx)
+        entry : ex.CTkEntryEx | ex.CTkTextboxEx
+            entry to be edited 
+            (must be an CTkEntryEx or CTkTextboxEx, normal CTk widgets don't work)
         select_all_on_begin : bool
             Whether to select the entire content and place cursor at end
             when the entry edit is started. Usually favorable for number inputs.
@@ -289,8 +361,10 @@ class Keyboard[CAT = str](ex.CTkFrameEx, AbstractRegistry):
         Raises
         ------
         ValueError
-            Entry already registered
+            Entry already registered or invalid type
         """
+        if not isinstance(entry, (ex.CTkEntryEx, ex.CTkTextboxEx)):
+            raise ValueError(f"Entry {entry} is an unsupported widget type: {type(entry)}")
         if entry in [v.entry for v in self._targets.values()]:
             raise ValueError(f"Entry {entry} is already registered for keyboard {self}")
         # allocate ID
@@ -356,12 +430,11 @@ class Keyboard[CAT = str](ex.CTkFrameEx, AbstractRegistry):
             self._end_editing_entry()
         # activate the new target and save initial text
         self._active_target = t
-        self._restore_text = self._active_target.entry.get()
+        self._restore_text = self._active_target.get_text()
         # if enabled, when we first get focus, we select the entire text content.
         # This makes it easier to edit number entries on the touchscreen
         if self._active_target.select_all_on_begin:
-            self._active_target.entry.select_range(0, ctk.END)
-            self._active_target.entry.icursor(ctk.END)
+            self._active_target.select_all()
         # call the edit begin handler if one is defined
         if self._active_target.on_begin is not None:
             self._active_target.on_begin()
@@ -369,15 +442,14 @@ class Keyboard[CAT = str](ex.CTkFrameEx, AbstractRegistry):
     def _end_editing_entry(self, focus_pull: bool = False) -> None:
         # pull focus out of entry if enabled and wanted
         if not self._active_target.disable_focus_pull and focus_pull:
-            self._active_target.entry.master.focus()
+            self._active_target.pull_focus_out()
         # clear selection and remove active entry
-        self._active_target.entry.select_clear()
+        self._active_target.select_clear()
         self._active_target = None
 
     def _perform_abort(self) -> None:
         # restore text to initial value and call abort callback
-        self._active_target.entry.delete(0, tk.END)
-        self._active_target.entry.insert(0, self._restore_text)
+        self._active_target.set_text(self._restore_text)
         if self._active_target.on_abort is not None:
             self._active_target.on_abort()
 
@@ -486,22 +558,12 @@ class Keyboard[CAT = str](ex.CTkFrameEx, AbstractRegistry):
 
         elif value == SpecialFunction.DELETE:
             if self._active_target is not None:
-                # delete selection if present
-                if self._active_target.entry.select_present():
-                    self._active_target.entry.delete(ctk.SEL_FIRST, ctk.SEL_LAST)
-                # otherwise delete one character
-                else:
-                    cursor_index = self._active_target.entry.index(ctk.INSERT)
-                    self._active_target.entry.delete(max(cursor_index - 1, 0), cursor_index)
+                self._active_target.backspace()
 
         elif isinstance(value, str):   # insert
             self.on_pre_insert.notify_all(value)
             if self._active_target is not None:
-                if self._active_target.entry.select_present():
-                    self._active_target.entry.delete(ctk.SEL_FIRST, ctk.SEL_LAST)
-                    self._active_target.entry.insert(ctk.ANCHOR, value)
-                else:
-                    self._active_target.entry.insert(ctk.INSERT, value)
+                self._active_target.insert_text(value)
             self.on_post_insert.notify_all(value)
         
         else:   # custom action, forward to custom action handler
