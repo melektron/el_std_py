@@ -8,6 +8,8 @@
   - added pre and post insert hooks
   - generalized implementation to support multiple target types
     - added support for `CTkTextBoxEx` targets
+  - added global `on_edit_begin` and `on_edit_end` hooks, e.g. to show/hide keyboard when editing begins/ends
+  - keyboard now detects disabled entries and doesn't start editing them when clicked
 - `el.datastore.SavableModel`
   - added ClassVar `model_dump_default_options` to  to specify default options used for saving files (like indentation).
 - `el.widgets.ctkex.CTkEntryEx`

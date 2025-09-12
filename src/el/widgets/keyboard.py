@@ -58,6 +58,11 @@ class _EditTarget:
     def pull_focus_out(self) -> None:
         """Pulls the focus of the entry onto it's master"""
         self.entry.master.focus()
+    
+    @property
+    def is_disabled(self) -> bool:
+        """True if the entry is disabled, False otherwise"""
+        return self.entry.cget("state") == "disabled"
 
     def get_text(self) -> str:
         """Returns the text in the entry"""
@@ -196,9 +201,17 @@ class Keyboard[CAT = str](ex.CTkFrameEx, AbstractRegistry):
         self._active_target: _EditTarget | None = None
         self._restore_text: str = ""
 
+        # Hook called when any target starts to be edited. Called just before the target-specific hook
+        self.on_edit_begin = CallbackManager()
+        # Hook called when the editing ends, whether via submit or abort. Called just after target-specific hook.
+        self.on_edit_end = CallbackManager()
+        # Hook called when a key is pressed without an active target, may be used to activate a target.
         self.on_keypress_fallback = CallbackManager[str | SpecialFunction | CAT]()
+        # Hook called just before text is inserted
         self.on_pre_insert = CallbackManager[str]()
+        # Hook called just after text is inserted
         self.on_post_insert = CallbackManager[str]()
+        # Hook called when a key with custom action is pressed in an active target
         self.on_custom_action = CallbackManager[CAT]()
 
         self._draw_buttons()
@@ -425,6 +438,14 @@ class Keyboard[CAT = str](ex.CTkFrameEx, AbstractRegistry):
         # already active -> do nothing
         if self._active_target is t:
             return
+        # if the entry is disabled, we don't start editing it
+        if t.is_disabled:
+            # also we focus-pull out of the entry, so it isn't 
+            # already focused when enabled (which would prevent
+            # you from editing it unless it is de-focused first)
+            if not t.disable_focus_pull:
+                t.pull_focus_out()
+            return
         # another one is active -> end it first
         if self._active_target is not None:
             self._end_editing_entry()
@@ -435,7 +456,9 @@ class Keyboard[CAT = str](ex.CTkFrameEx, AbstractRegistry):
         # This makes it easier to edit number entries on the touchscreen
         if self._active_target.select_all_on_begin:
             self._active_target.select_all()
-        # call the edit begin handler if one is defined
+        # call the generic edit begin hook
+        self.on_edit_begin.notify_all()
+        # call the target-specific edit begin handler if one is defined
         if self._active_target.on_begin is not None:
             self._active_target.on_begin()
 
@@ -452,11 +475,15 @@ class Keyboard[CAT = str](ex.CTkFrameEx, AbstractRegistry):
         self._active_target.set_text(self._restore_text)
         if self._active_target.on_abort is not None:
             self._active_target.on_abort()
+        # call the generic edit end hook
+        self.on_edit_end.notify_all()
 
     def _perform_submit(self) -> None:
         # call submit callback
         if self._active_target.on_submit is not None:
             self._active_target.on_submit()
+        # call the generic edit end hook
+        self.on_edit_end.notify_all()
 
     def start_editing(self, id: RegistrationID, focus: bool = True) -> None:
         """

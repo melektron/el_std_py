@@ -282,6 +282,10 @@ class CTkTextboxEx(ctk.CTkTextbox):
     def cget(self, attribute_name: str) -> typing.Any:
         if attribute_name == "touchscreen_mode":
             return self._touchscreen_mode
+        # we patch in cget from the _textbox as done in CTkEntry, 
+        # which is missing in CTkTextBox
+        elif attribute_name in self._valid_tk_text_attributes:
+            return self._textbox.cget(attribute_name)  # cget of tkinter.Text
         else:
             return super().cget(attribute_name)
     
