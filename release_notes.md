@@ -14,6 +14,11 @@
   - added ClassVar `model_dump_default_options` to  to specify default options used for saving files (like indentation).
 - `el.widgets.ctkex.CTkEntryEx`
   - `select_all()` and Ctrl+A selection by default
+- `el.widgets.ctkex.CTkButtonEx`
+  - added `dark_when_disabled` option: Makes button fg the hover_color when it is in disabled state
+- `el.widgets.listbox.CTkListBox`:
+  - added methods `select_single_by_index`, `select_single_by_id`, `deselect_all`
+
 
 ## New Features
 

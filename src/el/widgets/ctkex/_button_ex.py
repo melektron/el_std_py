@@ -51,6 +51,7 @@ class _CTkButtonPassthroughArgs(typing.TypedDict, total=False):
 class CTkButtonExPassthroughArgs(_CTkButtonPassthroughArgs, total=False):
     touchscreen_mode: MaybeObservable[bool]
     round_corner_exclude: tuple[bool, bool, bool, bool]
+    dark_when_disabled: bool
 
 
 class CTkButtonEx(ctk.CTkButton):
@@ -59,6 +60,7 @@ class CTkButtonEx(ctk.CTkButton):
         master: tk.Misc,
         touchscreen_mode: MaybeObservable[bool] = False,
         round_corner_exclude: tuple[bool, bool, bool, bool] = (False, False, False, False),
+        dark_when_disabled: bool = False,
         **kwargs: typing.Unpack[_CTkButtonPassthroughArgs]
     ):
         self._touchscreen_mode = maybe_obs_value(touchscreen_mode)
@@ -67,6 +69,8 @@ class CTkButtonEx(ctk.CTkButton):
             apply_to_config(self, "touchscreen_mode"), 
             initial_update=False,
         )
+
+        self._dark_when_disabled = dark_when_disabled
         self._round_corner_exclude = round_corner_exclude
         super().__init__(master, **kwargs)
 
@@ -147,19 +151,36 @@ class CTkButtonEx(ctk.CTkButton):
                                     fill=self._apply_appearance_mode(self._border_color))
             
             # set color for inner button parts
-            if self._fg_color == "transparent":
-                self._canvas.itemconfig("inner_parts",
-                                        outline=self._apply_appearance_mode(self._bg_color),
-                                        fill=self._apply_appearance_mode(self._bg_color))
-            else:
-                self._canvas.itemconfig("inner_parts",
-                                        outline=self._apply_appearance_mode(self._fg_color),
-                                        fill=self._apply_appearance_mode(self._fg_color))
+            # here we also add the additional functionality of making the button
+            # dark (hover color) if state=="disabled" and that function is enabled
+            # by using our inner parts color property
+            self._canvas.itemconfig(
+                "inner_parts",
+                outline=self._apply_appearance_mode(self._inner_parts_color),
+                fill=self._apply_appearance_mode(self._inner_parts_color)
+            )
+            # here we also additionally update the bgcolor or image bg color 
+            # set text_label bg color (label color)
+            if self._text_label is not None:
+                self._text_label.configure(bg=self._apply_appearance_mode(self._inner_parts_color))
+            # set image_label bg color (image bg color)
+            if self._image_label is not None:
+                self._image_label.configure(bg=self._apply_appearance_mode(self._inner_parts_color))
 
             #self._canvas.itemconfig("corner_cover_border_parts",
             #                        fill="orange" if self._desired_width == self._current_width else "red")
             #self._canvas.itemconfig("corner_cover_inner_parts",
             #                        fill="lime" if self._desired_width == self._current_width else "green")
+
+    @property
+    def _inner_parts_color(self) -> Color:
+        """ Property to calculate inner color while regarding dark_when_disabled """
+        if self._fg_color == "transparent":
+            return self._bg_color
+        elif self._state == tk.DISABLED and self._dark_when_disabled:
+            return self._hover_color
+        else:
+            return self._fg_color
 
     @typing.override
     def _clicked(self, event=None):
@@ -196,6 +217,27 @@ class CTkButtonEx(ctk.CTkButton):
         elif not self._touchscreen_mode:
             super()._on_enter(event)
         # if we are in touchscreen mode we don't do the animation
+
+    @typing.override
+    def _on_leave(self, event=None):
+        # we completely replace the super version of _on_leave
+        # to implement the dark_if_disabled behavior
+        self._click_animation_running = False
+        
+        # we replace the color choosing here with our _inner_parts_color property
+
+        # set color of inner button parts
+        self._canvas.itemconfig("inner_parts",
+                                outline=self._apply_appearance_mode(self._inner_parts_color),
+                                fill=self._apply_appearance_mode(self._inner_parts_color))
+
+        # set text_label bg color (label color)
+        if self._text_label is not None:
+            self._text_label.configure(bg=self._apply_appearance_mode(self._inner_parts_color))
+
+        # set image_label bg color (image bg color)
+        if self._image_label is not None:
+            self._image_label.configure(bg=self._apply_appearance_mode(self._inner_parts_color))
 
     @typing.override
     def _click_animation(self):

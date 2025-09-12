@@ -461,7 +461,7 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
         notify : bool, optional
             Whether to notify observers. Disable this if you whish to aggregate updates 
             of multiple calls. Defaults to True.
-        
+
         Raises
         ------
         IndexError
@@ -518,6 +518,81 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
             )
         except KeyError as e:
             raise KeyError(f"No option with ID {e} exists in this listbox")
+
+    def select_single_by_index(
+        self,
+        index: int
+    ) -> None:     
+        """
+        Selects a single option identified by its index in the listbox.
+        Other options are deselected (single-selection mode).
+
+        Parameters
+        ----------
+        index : int
+            Index of the option to select
+        
+        Raises
+        ------
+        IndexError
+            If an out-of-range option index is passed to this function
+        """
+
+        if index >= len(self._internal_options):
+            raise IndexError(f"No option with index '{index}' exists in this listbox")
+
+        self._perform_single_select(index, self._internal_options[index])
+        
+    def select_single_by_id(
+        self,
+        id: IT,
+    ) -> None:     
+        """
+        Selects a single option identified by its unique ID.
+        Other options are deselected (single-selection mode).
+
+        Parameters
+        ----------
+        id : IT
+            ID of the option to select
+        
+        Raises
+        ------
+        KeyError
+            If an invalid ID is passed to this function
+        IndexError
+            If an out-of-range option index is passed to this function
+        """
+        try:
+            self.select_single_by_index(self._id_to_index[id])
+        except KeyError as e:
+            raise KeyError(f"No option with ID {e} exists in this listbox")
+    
+    def deselect_all(
+        self,
+        notify: bool = True,
+    ) -> None:
+        """
+        Deselects all options.
+
+        Parameters
+        ----------
+        notify : bool, optional
+            Whether to notify observers. Disable this if you whish to aggregate updates 
+            of multiple calls. Defaults to True.
+        """
+        # deselect previously selected options
+        for i in self.selected_indices.value:
+            prev_opt = self._internal_options[i]
+            prev_opt.selected = False
+            self._update_button_selected(prev_opt)
+        
+        # update selection sets
+        self.selected_indices.value.clear()
+        self.selected_ids.value.clear()
+        if notify:
+            self.selected_indices.force_notify()
+            self.selected_ids.force_notify()
 
     def _create_option_button(self, index: int, option: OptionEntry) -> ctk.CTkButton:
         btn = ctk.CTkButton(
