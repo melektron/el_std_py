@@ -206,7 +206,8 @@ def next_row(
     """
     Moves the context on to the next row so 
     the following widgets are placed on a new grid row.
-    This is meant to be used when placing widgets with `add_column`.
+    This is meant to be used when placing widgets with `add_column`
+    or when a row should be skipped.
 
     Parameters
     ----------
@@ -227,7 +228,8 @@ def next_column(
     """
     Moves the context on to the next column so 
     the following widgets are placed in a new grid column.
-    This is meant to be used when placing widgets with `add_row`.
+    This is meant to be used when placing widgets with `add_row`
+    or when a column should be skipped.
 
     Parameters
     ----------

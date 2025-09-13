@@ -16,6 +16,7 @@ import time
 
 from el.timers import WDTimer
 from ._observable import Observable, ObserverFunction, StatefulFilter
+from el.numbers import clamp
 
 def if_true[T](v: T) -> T:
     """
@@ -76,11 +77,7 @@ def limits[T](
     def limiter(v: T) -> T:
         if v == ...:
             return v
-        if min_value is not None and v < min_value:
-            return min_value
-        if max_value is not None and v > max_value:
-            return max_value
-        return v
+        return clamp(v, min_value, max_value)
     return limiter
 
 

@@ -18,7 +18,8 @@
   - added `dark_when_disabled` option: Makes button fg the hover_color when it is in disabled state
 - `el.widgets.listbox.CTkListBox`:
   - added methods `select_single_by_index`, `select_single_by_id`, `deselect_all`
-
+- `el.numbers`
+  - added `clamp` function to clamp value between a minimum and maximum
 
 ## New Features
 
