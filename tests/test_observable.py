@@ -565,3 +565,41 @@ def test_compose_all():
     assert received == (2, 5.4, "hi"), "callback should not have been called bc the observable was empty"
  
 
+def test_force_notify():
+    obs = Observable[list[int]]([2, 3, 4])
+    observer_result = ...
+    def observer(v: int):
+        nonlocal observer_result
+        observer_result = v
+    derived_obs = Observable[list[int]]()   # empty at first
+    derived_observer_result = ...
+    def derived_observer(v: int):
+        nonlocal derived_observer_result
+        derived_observer_result = v
+    
+    obs.observe(observer, initial_update=False)
+    # this initially updates derived_obs so both have the same list instance.
+    # This causes problems with update propagation, because the new mutated
+    # value is always equal when comparing to itself, so force is needed to propagate
+    derived_obs << obs
+    derived_obs.observe(derived_observer, initial_update=False)
+
+    assert obs.value == [2, 3, 4]
+    assert derived_obs.value == [2, 3, 4]
+    assert observer_result == ..., "musts not be changed yet"
+    assert derived_observer_result == ..., "musts not be changed yet"
+    
+    obs.value.append(5)
+    #assert obs.value is derived_obs.value
+    assert obs.value == [2, 3, 4, 5], "must have changed because it was mutated"
+    assert derived_obs.value == [2, 3, 4, 5], "must have changed because it was mutated and is a reference to the same instance"
+    assert observer_result == ..., "musts not be notified yet because setter wasn't triggered"
+    assert derived_observer_result == ..., "musts not be notified yet because setter wasn't triggered"
+
+    obs.force_notify(force_recursive=False) # first test without recursive, descendants should not be forced
+    assert observer_result == [2, 3, 4, 5], "must now have updated"
+    assert derived_observer_result == ..., "must still not have updated because force wasn't recursive and value was equal to the old one because the old one is the same instance as the new one and was mutated too"
+    
+    obs.force_notify() # now with recursive (which should be the default)
+    assert observer_result == [2, 3, 4, 5], "must not have changed"
+    assert derived_observer_result == [2, 3, 4, 5], "must now also have updated because force was recursive, so update propagated even though value has seemingly not changed"

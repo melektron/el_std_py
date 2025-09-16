@@ -30,17 +30,12 @@ class ComposedObservable[*Ts](Observable[tuple[*Ts]]):
     Return type of `el.observable.compose()`. This is
     not to be constructed by a library user directly!
     """
-
-    def receive(self, *vs: *Ts):
-        """
-        same as the value setter, just for internal use in chaining and for setting in lambdas 
-        """
-        self.value = vs
-
+    
     def observe[R](
         self, 
         observer: ComposedObserverFunction[*Ts, R],
-        initial_update: bool = True
+        initial_update: bool = True,
+        pass_force_recursive: bool = False,
     ) -> "Observable[R]":
         """
         Adds a new observer function to the composed observable returned from `compose()`.
@@ -68,6 +63,12 @@ class ComposedObservable[*Ts](Observable[tuple[*Ts]]):
             upon observation, by default True (which is the same behavior as the
             >> operator). If the source observable has no value, an initial update
             will never be emitted.
+        pass_force_recursive : bool, optional
+            Special flag indicating that the force_recursive flag should be passed
+            to the observer function via keyword argument. This is only needed
+            for special cases where the observer indirectly notifies descendant 
+            observables where this flag needs to be passed on, such as for
+            composed observables or when chaining with `receive()`.
         
         Returns
         -------
@@ -108,7 +109,7 @@ class ComposedObservable[*Ts](Observable[tuple[*Ts]]):
         def unpacker(v: tuple[*Ts]) -> R:
             return observer(*v)
 
-        return super().observe(unpacker, initial_update)
+        return super().observe(unpacker, initial_update, pass_force_recursive=pass_force_recursive)
 
     def __rshift__[R](self, observer: ComposedObserverFunction[*Ts, R]) -> "Observable[R]":
         """
@@ -409,16 +410,20 @@ def compose(
         is typed using overloads.
     """
     composed_obs = ComposedObservable()
-    def updater(_=None) -> None:
+    def updater(_=None, *, force_recursive: bool = False) -> None:
         values = tuple(obs.value for obs in args)
         if all_required and any(v == ... for v in values):
-            composed_obs.value = ...
+            composed_obs.receive(..., force_recursive=force_recursive)
         else:
-            composed_obs.value = values
+            composed_obs.receive(values, force_recursive=force_recursive)
     updater()   # set initial value
     # hook up all the sources by observing them
     for obs in args:
-        obs.observe(updater, initial_update=False)   # init already done above
+        obs.observe(
+            updater, 
+            initial_update=False,       # init already done above
+            pass_force_recursive=True,  # force recursive must be passed to observer to pass on to composed observable
+        )   
     
     return composed_obs
 

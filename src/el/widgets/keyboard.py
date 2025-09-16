@@ -145,6 +145,7 @@ class Key[CAT = str]:
     text: str | None = None
     icon: ctk.CTkImage | None = None
     color: ctku.Color | None = None
+    hover_color: ctku.Color | None = None
 
 
 @dataclasses.dataclass
@@ -158,6 +159,7 @@ class KeyOverlay[CAT = str]:
     text: str | None = None
     icon: ctk.CTkImage | None = None
     color: ctku.Color | None = None
+    hover_color: ctku.Color | None = None
 
 
 type OverlayLayerType[CAT = str] = dict[str | SpecialFunction | CAT, KeyOverlay[CAT]]
@@ -257,6 +259,7 @@ class Keyboard[CAT = str](ex.CTkFrameEx, AbstractRegistry):
                         text=self._select_button_text(key.value, key.text, key.icon),
                         image=key.icon,
                         fg_color=key.color,
+                        hover_color=key.hover_color,
                         touchscreen_mode=self._touchscreen_mode,
                     )
                 button.configure(command=lambda k=key: self._handle_key(k))
@@ -289,11 +292,13 @@ class Keyboard[CAT = str](ex.CTkFrameEx, AbstractRegistry):
                 text = overlay.text if overlay.text is not None else key.text
                 icon = overlay.icon if overlay.icon is not None else key.icon
                 color = overlay.color if overlay.color is not None else key.color
+                hover_color = overlay.hover_color if overlay.hover_color is not None else key.hover_color
                 
                 button.configure(
                     text=self._select_button_text(value, text, icon),
                     image=icon,
                     fg_color=color if color is not None else ctk.ThemeManager.theme["CTkButton"]["fg_color"],
+                    hover_color=hover_color if hover_color is not None else ctk.ThemeManager.theme["CTkButton"]["hover_color"],
                 )
             else:
                 # otherwise just load the normal key values
@@ -301,6 +306,7 @@ class Keyboard[CAT = str](ex.CTkFrameEx, AbstractRegistry):
                     text=self._select_button_text(key.value, key.text, key.icon),
                     image=key.icon,
                     fg_color=key.color if key.color is not None else ctk.ThemeManager.theme["CTkButton"]["fg_color"],
+                    hover_color=key.hover_color if key.hover_color is not None else ctk.ThemeManager.theme["CTkButton"]["hover_color"],
                 )
                 
 

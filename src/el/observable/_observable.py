@@ -22,7 +22,11 @@ from el.lifetime import RegistrationID, AbstractRegistry
 
 _log = logging.getLogger(__name__)
 
+# type for any function that can be used as an observer
 type ObserverFunction[T, R] = typing.Callable[[T], R]
+# protocol for typing the internal observer wrapper that takes additional kwargs
+class _IntermediateObserver[T](typing.Protocol):
+    def __call__(self, val: T, *, force_recursive: bool) -> None: ...
 
 
 class StatefulFilter[T, R](abc.ABC):
@@ -88,7 +92,7 @@ class _ObserverRecord[T]:
     Internal representation of an observer
     """
     # intermediate receiver function wrapping the derived observable functionality
-    function: ObserverFunction[T, None]
+    function: _IntermediateObserver[T]
     # the resulting derived observable object
     derived: "Observable[T]"
     # set when the observer is a stateful filter so it can be deactivated
@@ -103,27 +107,25 @@ class Observable[T](AbstractRegistry):
         self._observers: dict[RegistrationID, _ObserverRecord[T]] = {}
         self._next_observer_id: RegistrationID = 0
 
-    def receive(self, v: T):
-        """
-        same as the value setter, just for internal use in chaining and for setting in lambdas 
-        """
-        self.value = v
-
-    def _notify(self):
+    def _notify(self, force_recursive: bool):
         """
         Notifies all observers of the current value
         """
         for observer in self._observers.values():
-            observer.function(self._value)
+            observer.function(self._value, force_recursive=force_recursive)
     
-    def force_notify(self):
+    def force_notify(self, force_recursive: bool = True):
         """
         Force fully cause a value update to be propagated
         to all observers without checking for value
         changes. This can be useful to send updates when externally
         mutating the value without the Observable's knowledge.
+
+        By default, this is propagated recursively to all decedents in the
+        observer chain, but this can be disabled by setting `force_recursive` 
+        to False.
         """
-        self._notify()
+        self._notify(force_recursive)
     
     @property
     def value(self) -> T:
@@ -136,22 +138,41 @@ class Observable[T](AbstractRegistry):
     def value(self, v: T):
         """
         Updates the value with a new value and notifies all observers
-        if the value is not equal to the previous value.
+        if the value is not equal to the previous value, like with receive().
 
         If the observable is set to ... (Ellipsis), that means "no value". This will be 
         internally stored but observers are not notified of it. This is mainly intended
         for filters and should in most cases not be used directly.
         """
+        self.receive(v)
+
+    def receive(self, v: T, *, force_recursive: bool = False):
+        """
+        Updates the value with a new value and notifies all observers
+        if the value is not equal to the previous value.
+        Unlike the value setter, this function offers more options
+        and can be used in contexts such as chaining or lambdas where assignments 
+        are inconvenient.
+
+        If the observable is set to ... (Ellipsis), that means "no value". This will be 
+        internally stored but observers are not notified of it. This is mainly intended
+        for filters and should in most cases not be used directly.
+
+        If `force_recursive` is set to True, observers are notified, even when the value 
+        has not actually changed. This is useful when operating with mutable values.
+        The flag is passed on to observers recursively.
+        """
         if v is ...:    #
             self._value = ...
-        elif self._value != v:
+        elif self._value != v or force_recursive:
             self._value = v
-            self._notify()
+            self._notify(force_recursive)
 
     def observe[R](
         self, 
         observer: ObserverFunction[T, R],
-        initial_update: bool = True
+        initial_update: bool = True,
+        pass_force_recursive: bool = False,
     ) -> "Observable[R]":
         """
         Adds a new observer function to the observable.
@@ -177,6 +198,12 @@ class Observable[T](AbstractRegistry):
             upon observation, by default True (which is the same behavior as the
             >> operator). If the source observable has no value, an initial update
             will never be emitted.
+        pass_force_recursive : bool, optional
+            Special flag indicating that the force_recursive flag should be passed
+            to the observer function via keyword argument. This is only needed
+            for special cases where the observer indirectly notifies descendant 
+            observables where this flag needs to be passed on, such as for
+            composed observables or when chaining with `receive()`.
         
         Returns
         -------
@@ -220,10 +247,13 @@ class Observable[T](AbstractRegistry):
         # create a derived observable
         derived_observable = Observable[R]()
         # create a function to pass the return value of of the observer to the new observable
-        def observer_wrapper(new_value: T) -> None:
-            result = observer(new_value)
+        def observer_wrapper(new_value: T, *, force_recursive: bool) -> None:
+            if pass_force_recursive:
+                result = observer(new_value, force_recursive=force_recursive)
+            else:
+                result = observer(new_value)
             if result is not ...:   # allow for filter functions to ignore values
-                derived_observable.value = result
+                derived_observable.receive(result, force_recursive=force_recursive)
         
         # if the observer is a stateful filter, we must initialize it
         is_stateful_filter = False
@@ -234,7 +264,7 @@ class Observable[T](AbstractRegistry):
         # if we have a value and it isn't disabled, already update the observer
         # with an initial update
         if initial_update and self._value is not ...:
-            observer_wrapper(self._value)
+            observer_wrapper(self._value, force_recursive=False)
         
         # save the observer and notify Abstract Registry to allow lifetime usage
         self._observers[self._next_observer_id] = _ObserverRecord[T](
@@ -290,7 +320,7 @@ class Observable[T](AbstractRegistry):
             raise TypeError(f"Observable cannot be chained to object of type '{type(observable)}'. It should be an 'Observable'")
         if observable is self:
             raise RecursionError("Observable cannot observe itself")
-        observable >> self.receive
+        observable.observe(self.receive, pass_force_recursive=True)
     
     def link(self, other: "Observable[T]", initial_update: bool = True):
         """
@@ -308,8 +338,8 @@ class Observable[T](AbstractRegistry):
             whether to initially update `other` with the value
             of `self`. By default True.
         """
-        self.observe(other.receive, initial_update=initial_update)
-        other.observe(self.receive, initial_update=False)
+        self.observe(other.receive, initial_update=initial_update, pass_force_recursive=True)
+        other.observe(self.receive, initial_update=False, pass_force_recursive=True)
 
     @typing.override
     def _ar_unregister(self, id: RegistrationID):

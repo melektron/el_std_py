@@ -94,3 +94,18 @@ def apply_to_tk_var[PT](variable: tk.Variable) -> Callable[[PT], PT]:
         return data
 
     return set_var
+
+
+def apply_enabled(widget: tk.Widget) -> Callable[[bool], bool]:
+    """
+    Creates an observer function that stets the widget status to
+    "normal" when the input value is True or "disabled" when the input value
+    is False. The value is passed through to the output.
+    """
+
+    def set_state(enabled: bool) -> bool:
+        widget.configure(state=(ctk.NORMAL if enabled else ctk.DISABLED))
+        return enabled
+
+    return set_state
+
