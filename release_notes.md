@@ -26,6 +26,7 @@
 
 - added `el.base` module
   - `filter_kwargs` helper to only pass non-None kwargs on another function
+  - `filter_string` helper to remove characters from string
 - added `el.widgets.ctkex.CTkTextBoxEx`
   - touchscreen mode
   - `select_all()` and Ctrl+A selection by default

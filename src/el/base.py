@@ -36,3 +36,22 @@ def filter_kwargs(**kwargs):
         for key, value in kwargs.items()
         if value is not None
     }
+
+
+def filter_string(text: str, chars_to_remove: str) -> str:
+    """Returns text without characters in `chars_to_remove`.
+
+    Parameters
+    ----------
+    text : str
+        text to filter
+    chars_to_remove : str
+        characters to remove. This is not treated as string but instead
+        as a list of individual characters (like with `.strip()`)
+
+    Returns
+    -------
+    str
+        filtered string\acrshort{}
+    """
+    return text.translate(str.maketrans('', '', chars_to_remove))
