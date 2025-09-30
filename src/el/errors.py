@@ -20,3 +20,6 @@ class IncompleteReadError(Exception):
 
 class InvalidPathError(Exception):
     pass
+
+class DuplicateError(Exception):
+    pass

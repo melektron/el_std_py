@@ -37,3 +37,5 @@
   - added `clamp` function to clamp value between a minimum and maximum
 - `el.ctk_utils`
   - added `apply_enabled` function to more easily set widget "state" from boolean value
+- `el.errors`
+  - added `DuplicateError`: Indicates that an operation couldn't be completed because of a duplicate object/entry
