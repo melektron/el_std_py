@@ -111,8 +111,16 @@ class Observable[T](AbstractRegistry):
         """
         Notifies all observers of the current value
         """
-        for observer in self._observers.values():
-            observer.function(self._value, force_recursive=force_recursive)
+        try:
+            for observer in self._observers.values():
+                observer.function(self._value, force_recursive=force_recursive)
+        except RuntimeError as e:
+            # we handle the runtime error and enhance it with additional info, but only
+            # if it was the specific runtime error caused by dict iteration, others
+            # are passed through directly.
+            if f"{e}" != "dictionary changed size during iteration":
+                raise
+            raise RuntimeError(f"{e}, likely because observers where added/removed inside an observer callback itself. This is forbidden as it would cause unpredictable behavior.")
     
     def force_notify(self, force_recursive: bool = True):
         """

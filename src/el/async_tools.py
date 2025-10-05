@@ -14,7 +14,7 @@ Utilities for working with asyncio (I wish some of these were in stdlib)
 import sys
 import asyncio
 import functools
-from typing import Callable, Any, Coroutine
+from typing import Callable, Any, Coroutine, Unpack
 from typing_extensions import ParamSpec
 import multiprocessing.connection as mpc
 
@@ -39,6 +39,17 @@ def synchronize(coro_fn: Callable[P, Coroutine[Any, Any, Any]]) -> Callable[P, N
     
     return inner
 
+def call_soon(
+    fn: Callable[P, Any],
+    *args: P.args,
+    context = None,
+    **kwargs: P.kwargs
+) -> asyncio.Handle:
+    """
+    Shortcut for `loop.call_soon()` on current loop acquired using `asyncio.get_event_loop()`
+    """
+    loop = asyncio.get_event_loop()
+    return loop.call_soon(fn, *args, context=context, **kwargs)
 
 def create_bg_task[T_R](coro: Coroutine[Any, Any, T_R]) -> asyncio.Task[T_R]:
     """

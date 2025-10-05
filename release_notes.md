@@ -21,6 +21,7 @@
   - added methods `select_single_by_index`, `select_single_by_id`, `deselect_all`
 - `el.observable.Observable` and `el.observable.ComposedObservable`
   - `force_notify()` now propagates force updates recursively to all descendant observables, composed observables and observers, mitigating issues where forcing an update after value mutation (e.g. appending to a list) only propagated to the first layer (direct observers). This was achieved by adding the `force_recursive` kwarg throughout the entire value update call path, optionally including observer functions.
+  - When registering or unregistering observers to an Observable in it's own callback, the resulting exception is now enhanced with more helpful information
 
 ## New Features
 
@@ -39,3 +40,5 @@
   - added `apply_enabled` function to more easily set widget "state" from boolean value
 - `el.errors`
   - added `DuplicateError`: Indicates that an operation couldn't be completed because of a duplicate object/entry
+- `el.async_tools`
+  - added `call_soon`: shortcut to "asyncio.get_event_loop().call_soon"
