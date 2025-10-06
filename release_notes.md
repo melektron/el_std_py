@@ -42,3 +42,5 @@
   - added `DuplicateError`: Indicates that an operation couldn't be completed because of a duplicate object/entry
 - `el.async_tools`
   - added `call_soon`: shortcut to "asyncio.get_event_loop().call_soon"
+- `el.path_utils`
+  - added `abspath`: shortcut for using os.path.abspath with pathlib paths
