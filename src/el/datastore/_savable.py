@@ -59,7 +59,12 @@ class SavableModel(pydantic.BaseModel):
         self._model_file_path = v
 
     @classmethod
-    def model_load_from_disk(cls, filepath: Path) -> typing.Self:
+    def model_load_from_disk(
+        cls, 
+        filepath: Path,
+        create_if_missing: bool = False,
+        backup_on_error: bool = False,
+    ) -> typing.Self:
         """
         Creates a model instance from the file on disk 
         specified in the "filepath" parameter.
@@ -73,7 +78,18 @@ class SavableModel(pydantic.BaseModel):
         filepath : Path
             The path on disk to load the model from.
             This is saved in the returned model instance.
-
+        create_if_missing : bool, optional
+            Whether the file should be created if it doesn't
+            exist in the specified location. When creating,
+            all parent directories are created as well if they
+            don't exist yet.
+            By default disabled.
+        backup_on_error : bool, optional
+            Whether the file should be moved to a backup location
+            (`{filename}.error.bak`) and replaced with a new file
+            if a validation error (invalid content) occurs.
+            By default disabled.
+            
         Returns
         -------
         typing.Self
@@ -87,12 +103,23 @@ class SavableModel(pydantic.BaseModel):
         pydantic.ValidationError
             File structure could not be parsed correctly.
         """
-
-        # check that the file exists and read it
-        if not filepath.exists() or not filepath.is_file():
-            raise FileExistsError(f"File {filepath} doesn't exist")
-        inst = cls.model_validate_json(filepath.read_text())
-        inst._model_file_path = filepath  # save the file path we loaded from
+        try:
+            inst = cls.model_validate_json(filepath.read_text())
+            inst._model_file_path = filepath  # save the file path we loaded from
+        except FileNotFoundError:
+            if not create_if_missing:
+                raise
+            # create new default file
+            inst = cls()
+            inst.model_save_to_disk_as(filepath)
+        except pydantic.ValidationError:
+            if not backup_on_error:
+                raise
+            # move erroneous file away
+            filepath.rename(filepath.with_name(filepath.name + ".error.bak"))
+            # create new default file
+            inst = cls()
+            inst.model_save_to_disk_as(filepath)
         return inst
 
     def _get_dump_options(self, user_opts: ModelDumpJsonOptions) -> ModelDumpJsonOptions:

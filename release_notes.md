@@ -13,6 +13,7 @@
   - keymap can define hover color
 - `el.datastore.SavableModel`
   - added ClassVar `model_dump_default_options` to  to specify default options used for saving files (like indentation).
+  - added flags `create_if_missing` and `backup_on_error` to `model_load_from_disk` method
 - `el.widgets.ctkex.CTkEntryEx`
   - `select_all()` and Ctrl+A selection by default
 - `el.widgets.ctkex.CTkButtonEx`
