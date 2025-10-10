@@ -24,9 +24,14 @@ from dataclasses import dataclass
 # import cProfile
 # import pstats
 
-from ._deps import *
+import el.ctk_utils as ctku
+import el.widgets.ctkex as ex
 from el.callback_manager import CallbackManager
-from el.observable import Observable
+from el.observable import Observable, MaybeObservable
+from el.lifetime import LifetimeManager
+
+from ._deps import *
+
 
 @dataclass
 class OptionEntry[IT: Hashable]:
@@ -38,13 +43,13 @@ class OptionEntry[IT: Hashable]:
 @dataclass
 class _InternalOptionEntry[IT](OptionEntry[IT]):
     selected: bool = False
-    button: ctk.CTkButton = ...
+    button: ex.CTkButtonEx = ...
 
 
 # IT is the user-specified option ID that can be stored with each option
 # to uniquely identify it independent of the index and the displayed text.
 # This must be hashable to be contained in the selection set and in dict keys
-class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
+class CTkListbox[IT: Hashable](ex.CTkScrollableFrameEx):
     def __init__(
         self,
         master: Any,
@@ -66,11 +71,13 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
         option_hover_color: Optional[Union[str, tuple[str, str]]] = None,
         option_selected_color: Optional[Union[str, tuple[str, str]]] = None,
         option_text_color: Optional[Union[str, tuple[str, str]]] = None,
+        option_text_color_selected: Optional[Union[str, tuple[str, str]]] = None,
         option_text_color_disabled: Optional[Union[str, tuple[str, str]]] = None,
         option_text_font: Optional[Union[tuple, ctk.CTkFont]] = None,
         option_compound: Literal["top", "left", "bottom", "right"] = "left",
         option_anchor: Literal["n", "ne", "e", "se", "s", "sw", "w", "nw", "center"] = "w",
         option_hover: bool = True,
+        touchscreen_mode: MaybeObservable[bool] = False,
         ):
         """
         ListBox Widget that can shows a set of options that the user can select.
@@ -125,7 +132,9 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
         option_selected_color : Optional[Union[str, tuple[str, str]]], optional
             foreground color of selected options, by default according to theme
         option_text_color : Optional[Union[str, tuple[str, str]]], optional
-            text color of options, by default according to theme
+            text color of options that are not selected, by default the label text color according to theme.
+        option_text_color_selected : Optional[Union[str, tuple[str, str]]], optional
+            text color of selected options, by default the button text color according to theme
         option_text_color_disabled : Optional[Union[str, tuple[str, str]]], optional
             text color of disabled options, by default according to theme
         option_text_font : Optional[Union[tuple, ctk.CTkFont]], optional
@@ -136,7 +145,8 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
             where to anchor the text in each option, by default "w"
         option_hover : bool, optional
             whether to enable hover effect on the option buttons, by default True
-        
+        touchscreen_mode : MaybeObservable[bool], optional
+            whether to enable touchscreen mode, which disables any hover effects
         """
 
         super().__init__(
@@ -149,6 +159,7 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
             scrollbar_fg_color=scrollbar_fg_color,
             scrollbar_button_color=scrollbar_button_color,
             scrollbar_button_hover_color=scrollbar_button_hover_color,
+            touchscreen_mode=touchscreen_mode,
         )
         # prevent the dimensions being defined by the inner canvas
         self._parent_frame.grid_propagate(False)
@@ -157,6 +168,9 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
         # canvas which we don't want
         self._set_dimensions(width=width, height=height)
         self.grid_columnconfigure(0, weight=1)
+
+        self._lifetime = LifetimeManager()
+        self._touchscreen_mode = touchscreen_mode
 
         # fix mouse wheel on Linux
         # https://github.com/TomSchimansky/CustomTkinter/issues/1356#issuecomment-1474104298
@@ -190,9 +204,14 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
             else option_selected_color
         )
         self._option_text_color = (
-            ctk.ThemeManager.theme["CTkButton"]["text_color"]
+            ctk.ThemeManager.theme["CTkLabel"]["text_color"]
             if option_text_color is None
             else option_text_color
+        )
+        self._option_text_color_selected = (
+            ctk.ThemeManager.theme["CTkButton"]["text_color"]
+            if option_text_color_selected is None
+            else option_text_color_selected
         )
         self._option_text_color_disabled = (
             ctk.ThemeManager.theme["CTkButton"]["text_color_disabled"]
@@ -390,6 +409,11 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
                             self._option_selected_color
                             if old_option.selected
                             else self._option_fg_color
+                        )
+                        changes["text_color"] = (
+                            self._option_text_color_selected
+                            if old_option.selected
+                            else self._option_text_color
                         )
                 if old_option.label != new_option.label:
                     old_option.label = new_option.label
@@ -594,12 +618,12 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
             self.selected_indices.force_notify()
             self.selected_ids.force_notify()
 
-    def _create_option_button(self, index: int, option: OptionEntry) -> ctk.CTkButton:
-        btn = ctk.CTkButton(
+    def _create_option_button(self, index: int, option: OptionEntry) -> ex.CTkButtonEx:
+        btn = ex.CTkButtonEx(
             master=self,
             fg_color=self._option_selected_color if option.id in self.selected_ids.value else self._option_fg_color,
             hover_color=self._option_hover_color,
-            text_color=self._option_text_color,
+            text_color=self._option_text_color_selected if option.id in self.selected_ids.value else self._option_text_color,
             text_color_disabled=self._option_text_color_disabled,
 
             text=option.label,
@@ -609,8 +633,9 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
             hover=self._option_hover,
             compound=self._option_compound,
             anchor=self._option_anchor,
+            touchscreen_mode=self._touchscreen_mode,
 
-            command=lambda i=index: self._on_option_clicked(i)
+            command=lambda i=index: self._on_option_clicked(i),
         )
         # place with bottom padding to get space between buttons
         btn.grid(row=index, column=0, padx=0, pady=(0, 5), sticky="nsew")
@@ -797,5 +822,15 @@ class CTkListbox[IT: Hashable](ctk.CTkScrollableFrame):
                 self._option_selected_color
                 if option.selected
                 else self._option_fg_color
+            ),
+            text_color=(
+                self._option_text_color_selected
+                if option.selected
+                else self._option_text_color
             )
         )
+
+    @override
+    def destroy(self):
+        self._lifetime.end()
+        return super().destroy()

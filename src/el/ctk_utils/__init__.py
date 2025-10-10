@@ -19,6 +19,6 @@ from ._colors import (
     tk_to_rgb8,
     rgb_to_hex_str,
 )
-from ._dynamic_config import apply_to_config, apply_to_tk_var, apply_enabled
+from ._dynamic_config import apply_to_config, apply_to_tk_var, flag_to_state, apply_enabled
 from ._scaling import apply_widget_scaling, reverse_widget_scaling, apply_window_scaling, reverse_window_scaling
 from .types import *

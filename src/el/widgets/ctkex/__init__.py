@@ -22,3 +22,4 @@ from ._frame_ex import CTkFrameEx, CTkFrameExPassthroughArgs
 from ._scrollable_frame_ex import CTkScrollableFrameEx, CTkScrollableFrameExPassthroughArgs
 from ._checkbox_ex import CTkCheckBoxEx, CTkCheckBoxExPassthroughArgs
 from ._textbox_ex import CTkTextboxEx, CTkTextboxExPassthroughArgs
+from ._scrollbar_ex import CTkScrollbarEx, CTkScrollbarExPassthroughArgs

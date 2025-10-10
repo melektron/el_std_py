@@ -16,7 +16,9 @@ color detection by using other ctkex widgets under the hood.
 import sys
 import typing
 
+import el.widgets.ctkex as ex
 from el.ctk_utils.types import *
+from el.observable import MaybeObservable
 
 from .._deps import *
 from ._frame_ex import CTkFrameEx
@@ -80,7 +82,11 @@ class CTkScrollableFrameEx(ctk.CTkScrollableFrame):
         round_height_to_even_numbers: bool = True,
         border_spacing_horizontal: int | None = None,
         border_spacing_vertical: int | None = None,
+
+        touchscreen_mode: MaybeObservable[bool] = False,
     ):
+        self._touchscreen_mode = touchscreen_mode
+
         # This __init__ is a complete replacement for super().__init__(). This way we can
         # change the types of some of the widget components.
 
@@ -103,12 +109,26 @@ class CTkScrollableFrameEx(ctk.CTkScrollableFrame):
         self._set_scroll_increments()
 
         if self._orientation == "horizontal":
-            self._scrollbar = ctk.CTkScrollbar(master=self._parent_frame, orientation="horizontal", command=self._parent_canvas.xview,
-                                           fg_color=scrollbar_fg_color, button_color=scrollbar_button_color, button_hover_color=scrollbar_button_hover_color)
+            self._scrollbar = ex.CTkScrollbarEx(
+                master=self._parent_frame,
+                orientation="horizontal",
+                command=self._parent_canvas.xview,
+                fg_color=scrollbar_fg_color,
+                button_color=scrollbar_button_color,
+                button_hover_color=scrollbar_button_hover_color,
+                touchscreen_mode=self._touchscreen_mode,
+            )
             self._parent_canvas.configure(xscrollcommand=self._scrollbar.set)
         elif self._orientation == "vertical":
-            self._scrollbar = ctk.CTkScrollbar(master=self._parent_frame, orientation="vertical", command=self._parent_canvas.yview,
-                                           fg_color=scrollbar_fg_color, button_color=scrollbar_button_color, button_hover_color=scrollbar_button_hover_color)
+            self._scrollbar = ex.CTkScrollbarEx(
+                master=self._parent_frame,
+                orientation="vertical",
+                command=self._parent_canvas.yview,
+                fg_color=scrollbar_fg_color,
+                button_color=scrollbar_button_color,
+                button_hover_color=scrollbar_button_hover_color,
+                touchscreen_mode=self._touchscreen_mode,
+            )
             self._parent_canvas.configure(yscrollcommand=self._scrollbar.set)
 
         self._label_text = label_text

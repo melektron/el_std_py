@@ -13,6 +13,7 @@ Function to apply observable values to tk and ctk widget config options
 
 from typing import Literal, Callable
 from ._deps import *
+from . import types
 
 
 ConfigOptionName = Literal[
@@ -95,6 +96,11 @@ def apply_to_tk_var[PT](variable: tk.Variable) -> Callable[[PT], PT]:
 
     return set_var
 
+def flag_to_state(enabled: bool) -> types.StateType:
+    """
+    returns "normal" for True and "disabled for False
+    """
+    return ctk.NORMAL if enabled else ctk.DISABLED
 
 def apply_enabled(widget: tk.Widget) -> Callable[[bool], bool]:
     """
@@ -104,7 +110,7 @@ def apply_enabled(widget: tk.Widget) -> Callable[[bool], bool]:
     """
 
     def set_state(enabled: bool) -> bool:
-        widget.configure(state=(ctk.NORMAL if enabled else ctk.DISABLED))
+        widget.configure(state=flag_to_state(enabled))
         return enabled
 
     return set_state

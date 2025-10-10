@@ -11,6 +11,7 @@
   - added global `on_edit_begin` and `on_edit_end` hooks, e.g. to show/hide keyboard when editing begins/ends
   - keyboard now detects disabled entries and doesn't start editing them when clicked
   - keymap can define hover color
+  - keymap (and overlays) can enable/disable keys
 - `el.datastore.SavableModel`
   - added ClassVar `model_dump_default_options` to  to specify default options used for saving files (like indentation).
   - added flags `create_if_missing` and `backup_on_error` to `model_load_from_disk` method
@@ -18,11 +19,17 @@
   - `select_all()` and Ctrl+A selection by default
 - `el.widgets.ctkex.CTkButtonEx`
   - added `dark_when_disabled` option: Makes button fg the hover_color when it is in disabled state
+- `el.widgets.ctkex.CTkScrollableFrameEx`
+  - added touchscreen mode
 - `el.widgets.listbox.CTkListBox`:
   - added methods `select_single_by_index`, `select_single_by_id`, `deselect_all`
+  - added touchscreen mode
 - `el.observable.Observable` and `el.observable.ComposedObservable`
   - `force_notify()` now propagates force updates recursively to all descendant observables, composed observables and observers, mitigating issues where forcing an update after value mutation (e.g. appending to a list) only propagated to the first layer (direct observers). This was achieved by adding the `force_recursive` kwarg throughout the entire value update call path, optionally including observer functions.
   - When registering or unregistering observers to an Observable in it's own callback, the resulting exception is now enhanced with more helpful information
+- `el.ctk_utils`
+  - Added `flag_to_state` function to convert boolean enable flag to state string in non-dynamic settings
+  - Added some more `types` to support new CTkEx widgets
 
 ## New Features
 
@@ -35,10 +42,13 @@
   - ability to exclude corners from radius
   - ability to change background corner colors
   - ability to control width/height rounding
+- `el.widgets.ctkex.CTkScrollbarEx`
+  - touchscreen mode support
 - `el.numbers`
   - added `clamp` function to clamp value between a minimum and maximum
 - `el.ctk_utils`
   - added `apply_enabled` function to more easily set widget "state" from boolean value
+  - added `invert_apm` function to invert the appearance mode (i.e. swap light/dark colors)
 - `el.errors`
   - added `DuplicateError`: Indicates that an operation couldn't be completed because of a duplicate object/entry
 - `el.async_tools`

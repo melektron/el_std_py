@@ -42,6 +42,23 @@ def homogenize_color_types(
             f"Color {color} of type {type(color)} cannot be homogenized to 'str' or 'tuple[str, str]'"
         )
 
+def invert_apm(color: Color) -> Color:
+    """
+    Inverts the appearance mode of `color`, i.e. swapping 
+    dark and light colors.
+
+    Returns
+    -------
+    Color
+        inverted color if `color` had an appearance mode.
+        If `color` was only a single color, it is returned as-is.
+    """
+    if isinstance(color, tuple):
+        return (color[1], color[0])
+    else:
+        return color
+
+
 def apply_apm(color: Color, mode: Literal["Light", "Dark"] | None = None) -> str:
     """
     Takes in a CTk color (= single color string or a pair of color strings)
