@@ -49,6 +49,7 @@ class _CTkButtonPassthroughArgs(typing.TypedDict, total=False):
     anchor: AnchorType
 
 class CTkButtonExPassthroughArgs(_CTkButtonPassthroughArgs, total=False):
+    wraplength: int
     touchscreen_mode: MaybeObservable[bool]
     round_corner_exclude: tuple[bool, bool, bool, bool]
     dark_when_disabled: bool
@@ -58,11 +59,14 @@ class CTkButtonEx(ctk.CTkButton):
 
     def __init__(self,
         master: tk.Misc,
+        wraplength: int = 0,
         touchscreen_mode: MaybeObservable[bool] = False,
         round_corner_exclude: tuple[bool, bool, bool, bool] = (False, False, False, False),
         dark_when_disabled: bool = False,
         **kwargs: typing.Unpack[_CTkButtonPassthroughArgs]
     ):
+        self._wraplength = wraplength
+
         self._touchscreen_mode = maybe_obs_value(touchscreen_mode)
         maybe_observe(
             touchscreen_mode, 
@@ -79,6 +83,10 @@ class CTkButtonEx(ctk.CTkButton):
         """ Override drawing method to implement round_corner_exclude """
         # first we draw the normal parts
         super()._draw(no_color_updates)
+
+        # patch in wraplength
+        if self._text_label is not None:
+            self._text_label.configure(wraplength=self._wraplength)
 
         # then on top of that, we draw additional rectangles to cover up some
         # of the corners that we want to "exclude" from rounding.
@@ -266,6 +274,9 @@ class CTkButtonEx(ctk.CTkButton):
             self._touchscreen_mode = maybe_obs_value(kwargs["touchscreen_mode"])
             kwargs.pop("touchscreen_mode")
             self._set_cursor()
+        elif "wraplength" in kwargs:
+            self._wraplength = int(kwargs.pop("wraplength"))
+            require_redraw = True
 
         super().configure(require_redraw, **kwargs)
 
@@ -273,6 +284,8 @@ class CTkButtonEx(ctk.CTkButton):
     def cget(self, attribute_name: str) -> typing.Any:
         if attribute_name == "touchscreen_mode":
             return self._touchscreen_mode
+        if attribute_name == "wraplength":
+            return self._wraplength
         else:
             return super().cget(attribute_name)
 

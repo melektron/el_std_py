@@ -19,11 +19,16 @@
   - `select_all()` and Ctrl+A selection by default
 - `el.widgets.ctkex.CTkButtonEx`
   - added `dark_when_disabled` option: Makes button fg the hover_color when it is in disabled state
+  - added `wraplength` option from Tkinter labels for the button text
 - `el.widgets.ctkex.CTkScrollableFrameEx`
   - added touchscreen mode
 - `el.widgets.listbox.CTkListBox`:
   - added methods `select_single_by_index`, `select_single_by_id`, `deselect_all`
   - added touchscreen mode
+- `el.widgets.spinbox.SpinBox`
+  - removed `command` parameter as it is redundant and the spinbox should be observed instead
+  - added `on_increment` and `on_decrement` callback managers to detect changes initiated by buttons
+  - added `reformat_on_increment`, `reformat_on_decrement`, `reformat_on_change` and `reformat_on_edit` parameters to more closely control when the entry value is reformatted. This mitigates issues of the value being reformatted while typing, causing problems.
 - `el.observable.Observable` and `el.observable.ComposedObservable`
   - `force_notify()` now propagates force updates recursively to all descendant observables, composed observables and observers, mitigating issues where forcing an update after value mutation (e.g. appending to a list) only propagated to the first layer (direct observers). This was achieved by adding the `force_recursive` kwarg throughout the entire value update call path, optionally including observer functions.
   - When registering or unregistering observers to an Observable in it's own callback, the resulting exception is now enhanced with more helpful information

@@ -20,6 +20,7 @@ from el.lifetime import LifetimeManager
 from el.ctk_utils.types import *
 from el.tkml.adapters import tku, tkl, stringvar_adapter
 from el.tkml.grid import configure_next_column, add_column
+from el.callback_manager import CallbackManager
 
 from .ctkex import CTkEntryEx, CTkButtonEx
 from ._deps import *
@@ -60,6 +61,10 @@ class SpinBox[T](ctk.CTkFrame, Observable[T]):
 
         initial_value: float = 0.0,
         formatter: typing.Callable[[T], str] = lambda v: f"{v:.0f}",
+        reformat_on_increment: bool = True,
+        reformat_on_decrement: bool = True,
+        reformat_on_change: bool = True,
+        reformat_on_edit: bool = False,
         datatype: typing.Type[T] = float,
         increments: float = 1.0,
         min_value: float = 0,
@@ -67,7 +72,6 @@ class SpinBox[T](ctk.CTkFrame, Observable[T]):
 
         state: StateType = "normal",
         hover: bool = True,
-        command: typing.Union[typing.Callable[[T], typing.Any], None] = None,
         touchscreen_mode: MaybeObservable[bool] = False,
         round_corner_exclude: tuple[bool, bool, bool, bool] = (False, False, False, False),
 
@@ -91,17 +95,24 @@ class SpinBox[T](ctk.CTkFrame, Observable[T]):
         self._lifetime = LifetimeManager()
         self._entry_text = Observable[str]("")
         self._formatter = formatter
+        self._reformat_on_increment = reformat_on_increment
+        self._reformat_on_decrement = reformat_on_decrement
+        self._reformat_on_change = reformat_on_change
+        self._reformat_on_edit = reformat_on_edit
         self._datatype = datatype
         self._increments = increments
         self._min_value = min_value
         self._max_value = max_value
 
-        self._command = command
+        self.on_increment = CallbackManager()
+        self.on_decrement = CallbackManager()
+
+        self._is_text_update = False
 
         with self._lifetime():
-            self.observe(ignore_errors(self.reformat))
-            self << self._entry_text.observe(ignore_errors(self._datatype)).observe(self._apply_limits)
-            self >> self._handle_change
+            self.observe(self._update_from_value)
+            self.reformat() # initial reformat so entries are not empty
+            self._entry_text.observe(self._update_from_text)
         
         # build UI
         with self._lifetime():
@@ -214,23 +225,50 @@ class SpinBox[T](ctk.CTkFrame, Observable[T]):
                         False,
                     )
                 ))
+    
+    def _update_from_text(self, text: str) -> None:
+        """Observer ot when the entry text changes"""
+        try:
+            value = self._datatype(text)
+        except:
+            return
+        value = self._apply_limits(value)
+        self._is_text_update = True
+        self.receive(value)
+        self._is_text_update = False
+    
+    def _update_from_value(self, value: T) -> None:
+        if self._is_text_update:
+            # This happens when the edit comes from a text edit.
+            # Here we usually don't want to reformat when editing
+            # as it disturbs our edit
+            if self._reformat_on_edit:
+                self.reformat()
+
+        else:
+            # any other value change triggered this.
+            # Here we usually do want to reformat to show the new value
+            if self._reformat_on_change:
+                self.reformat()
 
     def _minus_command(self) -> None:
         """ command handler for minus button """
         self.focus()
         self.value = self._datatype(self._apply_limits(self._value - self._increments))
+        if self._reformat_on_decrement:
+            self.reformat()
+        self.on_decrement.notify_all()
 
     def _plus_command(self) -> None:
         """ command handler for plus button """
         self.focus()
         self.value = self._datatype(self._apply_limits(self._value + self._increments))
+        if self._reformat_on_increment:
+            self.reformat()
+        self.on_increment.notify_all()
     
     def _apply_limits(self, v: T) -> T:
         return min(max(v, self._min_value), self._max_value)
-    
-    def _handle_change(self, v: T) -> None:
-        if self._command is not None:
-            self._command(v)
     
     def reformat(self, *_) -> None:
         """
