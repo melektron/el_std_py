@@ -82,6 +82,9 @@ class CTkEntryEx(ctk.CTkEntry):
         self.persistent_on_focus_in = CallbackManager[tk.Event | None]()
         self.persistent_on_focus_out = CallbackManager[tk.Event | None]()
 
+        # cache to deduplicate redundante cursor updates
+        self._cursor_cache: str = "ThIsVaLuEnEvErHaPpEnS"
+
         super().__init__(master, **kwargs)
 
         self._set_cursor()
@@ -251,9 +254,20 @@ class CTkEntryEx(ctk.CTkEntry):
             return super().cget(attribute_name)
     
     def _set_cursor(self):
+        """ 
+        Add this to allow disabling cursor in touchscreen mode
+        """
         if self._touchscreen_mode:
-            self.configure(cursor="none")
-            self._entry.configure(cursor="none")
+            cursor="none"
+            cursor_entry = "none"
         else:
-            self.configure(cursor="")
-            self._entry.configure(cursor="xterm")
+            cursor=""
+            cursor_entry = "xterm"
+            
+        # update cursor if it differs from the previous one
+        # to avoid unnecessary flickers
+        if self._cursor_cache != cursor:
+            self.configure(cursor=cursor)
+            self._entry.configure(cursor=cursor_entry)
+            self._cursor_cache = cursor
+        

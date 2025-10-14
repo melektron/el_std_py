@@ -17,6 +17,7 @@ try:
     import customtkinter as ctk
     from customtkinter.windows.widgets.scaling import CTkScalingBaseClass
     from customtkinter.windows.widgets.appearance_mode import CTkAppearanceModeBaseClass
+    from customtkinter.windows.widgets.utility import pop_from_dict_by_set, check_kwargs_empty
     import tkinter as tk
     #import PIL as pil
 except ImportError:

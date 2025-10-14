@@ -19,6 +19,8 @@ from el.callback_manager import CallbackManager
 from el.ctk_utils.types import *
 from el.ctk_utils import apply_to_config
 
+from ._scrollbar_ex import CTkScrollbarEx
+
 
 class _CTkTextboxPassthroughArgs(typing.TypedDict, total=False):
     width: int
@@ -53,6 +55,25 @@ class CTkTextboxEx(ctk.CTkTextbox):
 
     def __init__(self,
         master: tk.Widget,
+
+        # args from super begin
+        width: int = 200,
+        height: int = 200,
+        corner_radius: typing.Optional[int] = None,
+        border_width: typing.Optional[int] = None,
+        border_spacing: int = 3,
+
+        bg_color: Color = "transparent",
+        fg_color: typing.Optional[Color] = None,
+        border_color: typing.Optional[Color] = None,
+        text_color: typing.Optional[Color] = None,
+        scrollbar_button_color: typing.Optional[Color] = None,
+        scrollbar_button_hover_color:  typing.Optional[Color] = None,
+
+        font: typing.Optional[FontArgType] = None,
+        activate_scrollbars: bool = True,
+        # args from super end
+
         touchscreen_mode: MaybeObservable[bool] = False,
         enable_select_all: bool = True,
         background_corner_colors: tuple[Color] | None = None,
@@ -84,7 +105,93 @@ class CTkTextboxEx(ctk.CTkTextbox):
         self.persistent_on_focus_in = CallbackManager[tk.Event | None]()
         self.persistent_on_focus_out = CallbackManager[tk.Event | None]()
 
-        super().__init__(master, **kwargs)
+        # cache to deduplicate redundante cursor updates
+        self._cursor_cache: str = "ThIsVaLuEnEvErHaPpEnS"
+
+        # The following is a copied and modified version of super().__init__().
+        # THis has been copied to be able to replace the CTkScrollbar by CTkScrollbarEx.
+
+        ## BEGIN SUPER().__INIT__
+        # transfer basic functionality (_bg_color, size, __appearance_mode, scaling) to CTkBaseClass
+        ctk.CTkBaseClass.__init__(self, master=master, bg_color=bg_color, width=width, height=height)
+
+        # color
+        self._fg_color = ctk.ThemeManager.theme["CTkTextbox"]["fg_color"] if fg_color is None else self._check_color_type(fg_color, transparency=True)
+        self._border_color = ctk.ThemeManager.theme["CTkTextbox"]["border_color"] if border_color is None else self._check_color_type(border_color)
+        self._text_color = ctk.ThemeManager.theme["CTkTextbox"]["text_color"] if text_color is None else self._check_color_type(text_color)
+        self._scrollbar_button_color = ctk.ThemeManager.theme["CTkTextbox"]["scrollbar_button_color"] if scrollbar_button_color is None else self._check_color_type(scrollbar_button_color)
+        self._scrollbar_button_hover_color = ctk.ThemeManager.theme["CTkTextbox"]["scrollbar_button_hover_color"] if scrollbar_button_hover_color is None else self._check_color_type(scrollbar_button_hover_color)
+
+        # shape
+        self._corner_radius = ctk.ThemeManager.theme["CTkTextbox"]["corner_radius"] if corner_radius is None else corner_radius
+        self._border_width = ctk.ThemeManager.theme["CTkTextbox"]["border_width"] if border_width is None else border_width
+        self._border_spacing = border_spacing
+
+        # font
+        self._font = ctk.CTkFont() if font is None else self._check_font_type(font)
+        if isinstance(self._font, ctk.CTkFont):
+            self._font.add_size_configure_callback(self._update_font)
+
+        self._canvas = ctk.CTkCanvas(master=self,
+                                 highlightthickness=0,
+                                 width=self._apply_widget_scaling(self._desired_width),
+                                 height=self._apply_widget_scaling(self._desired_height))
+        self._canvas.grid(row=0, column=0, rowspan=2, columnspan=2, sticky="nsew")
+        self._canvas.configure(bg=self._apply_appearance_mode(self._bg_color))
+        self._draw_engine = ctk.DrawEngine(self._canvas)
+
+        self._textbox = tk.Text(
+            self,
+            fg=self._apply_appearance_mode(self._text_color),
+            width=0,
+            height=0,
+            font=self._apply_font_scaling(self._font),
+            highlightthickness=0,
+            relief="flat",
+            insertbackground=self._apply_appearance_mode(self._text_color),
+            **pop_from_dict_by_set(kwargs, self._valid_tk_text_attributes)
+        )
+
+        check_kwargs_empty(kwargs, raise_error=True)
+
+        # scrollbars
+        self._scrollbars_activated = activate_scrollbars
+        self._hide_x_scrollbar = True
+        self._hide_y_scrollbar = True
+
+        self._y_scrollbar = CTkScrollbarEx(
+            self,
+            width=8,
+            height=0,
+            border_spacing=0,
+            fg_color=self._fg_color,
+            button_color=self._scrollbar_button_color,
+            button_hover_color=self._scrollbar_button_hover_color,
+            orientation="vertical",
+            command=self._textbox.yview,
+            touchscreen_mode=touchscreen_mode,
+        )
+        self._textbox.configure(yscrollcommand=self._y_scrollbar.set)
+
+        self._x_scrollbar = CTkScrollbarEx(
+            self,
+            height=8,
+            width=0,
+            border_spacing=0,
+            fg_color=self._fg_color,
+            button_color=self._scrollbar_button_color,
+            button_hover_color=self._scrollbar_button_hover_color,
+            orientation="horizontal",
+            command=self._textbox.xview,
+            touchscreen_mode=touchscreen_mode,
+        )
+        self._textbox.configure(xscrollcommand=self._x_scrollbar.set)
+
+        self._create_grid_for_text_and_scrollbars(re_grid_textbox=True, re_grid_x_scrollbar=True, re_grid_y_scrollbar=True)
+
+        self.after(50, self._check_if_scrollbars_needed, None, True)
+        self._draw()
+        ## END SUPER().__INIT__
 
         # Observable to access and modify the text as a whole
         self.text = Observable[str]("")
@@ -290,9 +397,19 @@ class CTkTextboxEx(ctk.CTkTextbox):
             return super().cget(attribute_name)
     
     def _set_cursor(self):
+        """ 
+        Add this to allow disabling cursor in touchscreen mode
+        """
         if self._touchscreen_mode:
-            self.configure(cursor="none")
-            self._textbox.configure(cursor="none")
+            cursor="none"
+            cursor_textbox = "none"
         else:
-            self.configure(cursor="")
-            self._textbox.configure(cursor="xterm")
+            cursor=""
+            cursor_textbox = "xterm"
+            
+        # update cursor if it differs from the previous one
+        # to avoid unnecessary flickers
+        if self._cursor_cache != cursor:
+            self.configure(cursor=cursor)
+            self._textbox.configure(cursor=cursor_textbox)
+            self._cursor_cache = cursor

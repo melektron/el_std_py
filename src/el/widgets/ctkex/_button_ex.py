@@ -9,6 +9,7 @@ This source code is licensed under the Apache-2.0 license found in the
 LICENSE file in the root directory of this source tree. 
 """
 
+import sys
 import math
 import typing
 from copy import copy
@@ -76,6 +77,10 @@ class CTkButtonEx(ctk.CTkButton):
 
         self._dark_when_disabled = dark_when_disabled
         self._round_corner_exclude = round_corner_exclude
+
+        # cache to deduplicate redundante cursor updates
+        self._cursor_cache: str = "ThIsVaLuEnEvErHaPpEnS"
+
         super().__init__(master, **kwargs)
 
     @typing.override
@@ -291,12 +296,28 @@ class CTkButtonEx(ctk.CTkButton):
 
     @typing.override
     def _set_cursor(self):
-        """ Override this to allow for disable cursor in touchscreen mode """
+        """ 
+        Override this to allow for disable cursor in touchscreen mode,
+        better Linux support and reduced flickering due to redundant 
+        cursor updates.
+        """
         if self._cursor_manipulation_enabled:   # This seems to be hardcoded to true... what's the point?
+            cursor = "" # default for systems such as Linux
             if self._touchscreen_mode:
-                self.configure(cursor="none")
+                cursor="none"
             else:
-                # when disabling ts mode we first set a default cursor
-                self.configure(cursor="")
-                # then we override it some more based on OS (done by the standard impl)
-                super()._set_cursor()
+                if self._state == tk.DISABLED:
+                    if sys.platform == "darwin" and self._command is not None:
+                        cursor = "arrow"
+                    elif sys.platform.startswith("win") and self._command is not None:
+                        cursor = "arrow"
+                elif self._state == tk.NORMAL:
+                    if sys.platform == "darwin" and self._command is not None:
+                        cursor = "pointinghand"
+                    elif sys.platform.startswith("win") and self._command is not None:
+                        cursor = "hand2"
+            # update cursor if it differs from the previous one
+            # to avoid unnecessary flickers
+            if self._cursor_cache != cursor:
+                self.configure(cursor=cursor)
+                self._cursor_cache = cursor

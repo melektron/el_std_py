@@ -76,7 +76,6 @@ class CTkScrollbarEx(ctk.CTkScrollbar):
         if "touchscreen_mode" in kwargs:
             self._touchscreen_mode = maybe_obs_value(kwargs["touchscreen_mode"])
             kwargs.pop("touchscreen_mode")
-            self._set_cursor()
 
         super().configure(require_redraw, **kwargs)
 
@@ -87,9 +86,3 @@ class CTkScrollbarEx(ctk.CTkScrollbar):
         else:
             return super().cget(attribute_name)
 
-    def _set_cursor(self):
-        """ Override this to allow for disable cursor in touchscreen mode """
-        if self._touchscreen_mode:
-            self.configure(cursor="none")
-        else:
-            self.configure(cursor="")

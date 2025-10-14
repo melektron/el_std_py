@@ -15,6 +15,8 @@
 - `el.datastore.SavableModel`
   - added ClassVar `model_dump_default_options` to  to specify default options used for saving files (like indentation).
   - added flags `create_if_missing` and `backup_on_error` to `model_load_from_disk` method
+- `el.widgets.ctkex`
+  - ctkex widgets requiring cursor manipulation for touchscreen mode have been improved to reduce flickering caused by cursor changes (for some reason) by not performing redundant cursor changes.
 - `el.widgets.ctkex.CTkEntryEx`
   - `select_all()` and Ctrl+A selection by default
 - `el.widgets.ctkex.CTkButtonEx`
@@ -42,7 +44,7 @@
   - `filter_kwargs` helper to only pass non-None kwargs on another function
   - `filter_string` helper to remove characters from string
 - added `el.widgets.ctkex.CTkTextBoxEx`
-  - touchscreen mode
+  - touchscreen mode (including CTkScrollbarEx)
   - `select_all()` and Ctrl+A selection by default
   - ability to exclude corners from radius
   - ability to change background corner colors
