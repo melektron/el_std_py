@@ -63,7 +63,7 @@ class CTkButtonEx(ctk.CTkButton):
         wraplength: int = 0,
         touchscreen_mode: MaybeObservable[bool] = False,
         round_corner_exclude: tuple[bool, bool, bool, bool] = (False, False, False, False),
-        dark_when_disabled: bool = False,
+        dark_when_disabled: bool = True,
         **kwargs: typing.Unpack[_CTkButtonPassthroughArgs]
     ):
         self._wraplength = wraplength

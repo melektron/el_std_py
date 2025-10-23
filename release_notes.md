@@ -20,7 +20,7 @@
 - `el.widgets.ctkex.CTkEntryEx`
   - `select_all()` and Ctrl+A selection by default
 - `el.widgets.ctkex.CTkButtonEx`
-  - added `dark_when_disabled` option: Makes button fg the hover_color when it is in disabled state
+  - added `dark_when_disabled` option: Makes button fg the hover_color when it is in disabled state (enabled by default)
   - added `wraplength` option from Tkinter labels for the button text
 - `el.widgets.ctkex.CTkScrollableFrameEx`
   - added touchscreen mode
