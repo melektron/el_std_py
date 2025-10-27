@@ -6,7 +6,7 @@ www.elektron.work
 All rights reserved.
 
 This source code is licensed under the Apache-2.0 license found in the
-LICENSE file in the root directory of this source tree. 
+LICENSE file in the root directory of this source tree.
 
 Tests for el.assets
 """
@@ -71,12 +71,12 @@ def test_colored_icon():
     """
     root = ctk.CTk()
 
-    img = builtin.load_colored_button_icon(root, "cancel.png", "red")
+    img = builtin.load_colored_icon(root, "cancel.png", "red")
     assert img._light_image.resize((32, 32)).getpixel((15, 15)) == (255, 0, 0, 255), "center pixel should be red with full opacity"
     assert img._light_image.resize((32, 32)).getpixel((0, 15)) == (0, 0, 0, 0), "side pixel should be completely transparent"
     assert img._dark_image.resize((32, 32)).getpixel((15, 15)) == (255, 0, 0, 255), "center pixel should be red with full opacity"
     assert img._dark_image.resize((32, 32)).getpixel((0, 15)) == (0, 0, 0, 0), "side pixel should be completely transparent"
-    
+
 
 def test_colored_icon_aware():
     """
@@ -85,7 +85,7 @@ def test_colored_icon_aware():
     """
     root = ctk.CTk()
 
-    img = builtin.load_colored_button_icon(root, "cancel.png", ("red", "#00ff00"))
+    img = builtin.load_colored_icon(root, "cancel.png", ("red", "#00ff00"))
     assert img._light_image.resize((32, 32)).getpixel((15, 15)) == (255, 0, 0, 255), "center pixel should be red with full opacity"
     assert img._light_image.resize((32, 32)).getpixel((0, 15)) == (0, 0, 0, 0), "side pixel should be completely transparent"
     assert img._dark_image.resize((32, 32)).getpixel((15, 15)) == (0, 255, 0, 255), "center pixel should be green with full opacity"

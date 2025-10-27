@@ -2,6 +2,7 @@
 
 
 ## Enhancements
+
 - `el.widgets.keyboard.Keyboard`
   - ability to see what if any target is currently being edited using the `active_target_id` property
   - added custom key actions and overlay layer support
@@ -28,7 +29,6 @@
   - added methods `select_single_by_index`, `select_single_by_id`, `deselect_all`
   - added touchscreen mode
 - `el.widgets.spinbox.SpinBox`
-  - removed `command` parameter as it is redundant and the spinbox should be observed instead
   - added `on_increment` and `on_decrement` callback managers to detect changes initiated by buttons
   - added `reformat_on_increment`, `reformat_on_decrement`, `reformat_on_change` and `reformat_on_edit` parameters to more closely control when the entry value is reformatted. This mitigates issues of the value being reformatted while typing, causing problems.
 - `el.observable.Observable` and `el.observable.ComposedObservable`
@@ -62,3 +62,10 @@
   - added `call_soon`: shortcut to "asyncio.get_event_loop().call_soon"
 - `el.path_utils`
   - added `abspath`: shortcut for using os.path.abspath with pathlib paths
+
+## Breaking Changes
+
+- `el.widgets.spinbox.SpinBox`
+  - removed `command` parameter as it is redundant and the spinbox should be observed instead
+- `el.assets.AssetManager`
+  - renamed `load_colored_button_icon()` to `load_colored_icon()` as it has nothing to do with buttons necessarily.

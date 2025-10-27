@@ -6,7 +6,7 @@ www.elektron.work
 All rights reserved.
 
 This source code is licensed under the Apache-2.0 license found in the
-LICENSE file in the root directory of this source tree. 
+LICENSE file in the root directory of this source tree.
 
 Asset manager class to load and prepare image files.
 """
@@ -28,22 +28,22 @@ class AssetManager:
 
     ## Monochrome Icons
 
-    Monochrome icons should best be provided in PNG format with black as the 
+    Monochrome icons should best be provided in PNG format with black as the
     foreground and transparent (using alpha) everywhere else.
-    For the recoloring to work, they must be of color_type 6 (RGBA) 
+    For the recoloring to work, they must be of color_type 6 (RGBA)
     8bpc, should however generally have a Bit depth of 1 for RGB and 8 Bit for Alpha.
-    This indicates that the images only contain fully black/white pixels but with 
+    This indicates that the images only contain fully black/white pixels but with
     varying transparency value, with the transparency layer acting as a mask defining the
     icon shape. If this is the case, black pixels can be easily recolored to anything without
     creating bleeding artifacts on anti-aliased edges.
 
-    Check the color mode using ImageMagick's identify: 
+    Check the color mode using ImageMagick's identify:
 
     ```
     identify -verbose image.png
     ```
 
-    It should contain something like this. The channel depth may vary if the image is not 
+    It should contain something like this. The channel depth may vary if the image is not
     a black+transparent mask.
 
     ```
@@ -76,14 +76,14 @@ class AssetManager:
     ... (more unimportant stuff)
     ```
 
-    Sometimes images from online sources can have an invalid color type (e.g. type 3) wich 
-    can cause weird errors such as ```ValueError: buffer is not large enough``` when trying 
-    to recolor them. In such cases, open the image with GIMP and re-export it to PNG with 
+    Sometimes images from online sources can have an invalid color type (e.g. type 3) wich
+    can cause weird errors such as ```ValueError: buffer is not large enough``` when trying
+    to recolor them. In such cases, open the image with GIMP and re-export it to PNG with
     the color mode `8bpc RGBA`.
     """
 
     def __init__(
-        self, 
+        self,
         base_path: Path | None = None,
         default_btn_icon_size: tuple[int, int] = (20, 20)
     ) -> None:
@@ -101,7 +101,7 @@ class AssetManager:
             Default size for button icons in pixels, by default 20x20
             which nicely fits the default CTk button height of 28.
             CTk widget scaling will be applied to this, so
-            the actual size on screen may differ. 
+            the actual size on screen may differ.
         """
         self.base_path = base_path
         self.default_btn_icon_size = default_btn_icon_size
@@ -125,7 +125,7 @@ class AssetManager:
             asset file name to load
         size : tuple[int, int] | None, optional
             Size of the image in pixels. If not passed,
-            the default value of the respective `AssetManager` 
+            the default value of the respective `AssetManager`
             will be used.
 
         Returns
@@ -133,10 +133,10 @@ class AssetManager:
         ctk.CTkImage
             Image object to be passed to CTkButton or another widget.
         """
-        
+
         if size is None:
             size = self.default_btn_icon_size
-        
+
         text_color: str | tuple[str, str] = ctku.homogenize_color_types(ctk.ThemeManager.theme["CTkButton"]["text_color"])
 
         base_img = Image.open(self.base_path / f"{name}")
@@ -160,10 +160,10 @@ class AssetManager:
         )
 
 
-    def load_colored_button_icon(
+    def load_colored_icon(
         self,
-        owner: tk.Tk | tk.Widget, 
-        name: str, 
+        owner: tk.Tk | tk.Widget,
+        name: str,
         color: ctku.Color,
         size: tuple[int, int] | None = None
     ) -> ctk.CTkImage:
@@ -184,7 +184,7 @@ class AssetManager:
             mode awareness.
         size : tuple[int, int] | None, optional
             Size of the image in pixels. If not passed,
-            the default value of the respective `AssetManager` 
+            the default value of the respective `AssetManager`
             will be used.
 
         Returns
@@ -195,7 +195,7 @@ class AssetManager:
 
         if size is None:
             size = self.default_btn_icon_size
-        
+
         base_img = Image.open(self.base_path / f"{name}")
 
         # recolor icon to match text color and resize

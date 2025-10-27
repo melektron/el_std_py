@@ -6,7 +6,7 @@ www.elektron.work
 All rights reserved.
 
 This source code is licensed under the Apache-2.0 license found in the
-LICENSE file in the root directory of this source tree. 
+LICENSE file in the root directory of this source tree.
 
 Utilities for working with asyncio (I wish some of these were in stdlib)
 """
@@ -14,7 +14,7 @@ Utilities for working with asyncio (I wish some of these were in stdlib)
 import sys
 import asyncio
 import functools
-from typing import Callable, Any, Coroutine, Unpack
+from typing import Callable, Any, Coroutine
 from typing_extensions import ParamSpec
 import multiprocessing.connection as mpc
 
@@ -36,7 +36,7 @@ def synchronize(coro_fn: Callable[P, Coroutine[Any, Any, Any]]) -> Callable[P, N
         task = asyncio.create_task(coro_fn(*args, **kwargs))
         _running_bg_tasks.add(task) # keep reference as long as it runs
         task.add_done_callback(lambda t: _running_bg_tasks.remove(t))
-    
+
     return inner
 
 def call_soon(
@@ -73,7 +73,7 @@ async def async_mpc_pipe_recv[RT](reader: "mpc.Connection[Any, RT]", timeout: fl
     asynchronously pausing the task until data is available to read.
 
     Inspiration: https://stackoverflow.com/a/62098165
-    
+
     :returns: The received data
 
     Parameters
@@ -92,7 +92,7 @@ async def async_mpc_pipe_recv[RT](reader: "mpc.Connection[Any, RT]", timeout: fl
     -------
     TimeoutError
         Timeout waiting for received data
-    """    
+    """
     if sys.platform == 'win32':
         async with asyncio.timeout(timeout):
             while not reader.poll():
@@ -110,7 +110,7 @@ async def async_mpc_pipe_recv[RT](reader: "mpc.Connection[Any, RT]", timeout: fl
                 data_available.clear()
 
         return reader.recv()
-    
+
 
 class ResetSemaphore(asyncio.Semaphore):
     """A Semaphore implementation that can be reset.
@@ -130,7 +130,7 @@ class ResetSemaphore(asyncio.Semaphore):
     """
     def __init__(self, value=1):
         super().__init__(value)
-    
+
     def reset(self, value: int = 0) -> None:
         """ Resets the internal counter to the provided value """
         self._value = value
