@@ -8,41 +8,38 @@ All rights reserved.
 This source code is licensed under the Apache-2.0 license found in the
 LICENSE file in the root directory of this source tree. 
 
-CTkEntry that is well integrated with observables and has some convenience features
+CTkEntryEx that is well integrated with observables and has some convenience features.
+This is especially 
 """
 
+import typing
+
 from ._deps import *
+
 from el.observable import Observable
+from el.widgets.ctkex import CTkEntryEx, CTkEntryExPassthroughArgs
+from el.tkml.adapters import stringvar_adapter
 
 
-class ValueBox(ctk.CTkEntry, Observable[str]):
+class ValueBox(CTkEntryEx, Observable[str]):
     def __init__(
         self, 
-        parent: ctk.CTkBaseClass,
-        initial_value: str = "", 
-        width: int = 150, 
+        master: tk.Misc,
+        initial_value: str = "",
+        display_only: bool = True,
         disabled_by_default: bool = True, 
-        **kwargs
+        **kwargs: typing.Unpack[CTkEntryExPassthroughArgs],
     ) -> None:
-        
-        self._entry_var = ctk.StringVar(parent)
-        ctk.CTkEntry.__init__(
+        Observable.__init__(self, initial_value=initial_value)
+        CTkEntryEx.__init__(
             self, 
-            parent, 
+            master,
             text_color=ctk.ThemeManager.theme["CTkEntry"]["text_color"], 
-            width=width, 
-            border_width=0, 
+            border_width=0 if display_only else None,
             state="disabled" if disabled_by_default else "normal",
-            textvariable=self._entry_var,
+            textvariable=stringvar_adapter(self, master),
             **kwargs
         )
-
-        Observable.__init__(self, initial_value=initial_value)
-        
-        # bind the observable function to the entry's textvariable
-        self >> self._entry_var.set
-        self._entry_var.trace_add("write", lambda *_: self.receive(self._entry_var.get()))
-        self.configure(textvariable=self._entry_var)
 
         self._disabled = disabled_by_default
 

@@ -196,6 +196,8 @@ class AssetManager:
         if size is None:
             size = self.default_btn_icon_size
 
+        color = ctku.homogenize_color_types(color)
+
         base_img = Image.open(self.base_path / f"{name}")
 
         # recolor icon to match text color and resize

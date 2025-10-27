@@ -1,5 +1,7 @@
 ## Bugfixes
 
+- `el.assets.AssetManager`
+  - `load_colored_icon()` now internally homogenizes the provided color type
 
 ## Enhancements
 
@@ -37,6 +39,10 @@
 - `el.ctk_utils`
   - Added `flag_to_state` function to convert boolean enable flag to state string in non-dynamic settings
   - Added some more `types` to support new CTkEx widgets
+- `el.widgets.ValueBox`
+  - Updated to use stringvar_adapter internally
+  - Updated to now use `CTkEntryEx` instead of `CTkEntry`
+  - added `display_only` constructor arg to dictate whether we want an initial border or not
 
 ## New Features
 
