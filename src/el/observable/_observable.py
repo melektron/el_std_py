@@ -30,7 +30,6 @@ class _IntermediateObserver[T](typing.Protocol):
 
 
 class StatefulFilter[T, R](abc.ABC):
-    @abc.abstractmethod
     def _connect(self, src: ReferenceType["Observable[T]"], dst: ReferenceType["Observable[R]"]) -> None:
         """
         Method that is called when a stateful filter instance
@@ -41,7 +40,8 @@ class StatefulFilter[T, R](abc.ABC):
         assigned if `__call__` returns a value), so it can autonomously
         and asynchronously trigger value updates in the chain without
         requiring an update from the source observable. This is useful
-        for time-based filters (delay, throttle, ...).
+        for time-based filters (delay, throttle, ...). Filters that don't
+        need asynchronous updates can omit implementing this method.
 
         The reference is weak to avoid potential reference circles between
         the source observable and the StatefulFilter instance.

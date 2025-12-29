@@ -69,6 +69,9 @@
   - added `call_soon`: shortcut to "asyncio.get_event_loop().call_soon"
 - `el.path_utils`
   - added `abspath`: shortcut for using os.path.abspath with pathlib paths
+- `el.observable.filters`
+  - added `on_edge` stateful filter for rising and falling edge detection
+  - added `debounce` stateful filter
 
 ## Breaking Changes
 

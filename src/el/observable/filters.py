@@ -13,6 +13,7 @@ Common filter and transform functions for observables
 
 import typing
 import time
+import warnings
 
 from el.timers import WDTimer
 from ._observable import Observable, ObserverFunction, StatefulFilter
@@ -31,7 +32,7 @@ def if_true[T](v: T) -> T:
         return v
     else:
         return ...
-    
+
 def call_if_true(
     t: typing.Callable, 
     f: typing.Callable | None = None
@@ -56,6 +57,55 @@ def call_if_true(
             if f is not None:
                 f()
     return obs
+
+
+
+class on_edge[T](StatefulFilter[T, T]):
+    def __init__(
+        self, *,
+        rising: typing.Callable[[T], None] | None = None,
+        falling: typing.Callable[[T], None] | None = None,
+        criterion: typing.Callable[[T], bool] = bool
+    ):
+        """
+        Detects edges in observable value changes.
+        Calls the provided callback `rising` on the rising
+        edge of observable values, and `falling` on the
+        falling edge.
+        For non-binary value types, a custom `criterion` can be
+        defined to determine the binary state of the value.
+
+        In an observer chain, this filter simply forwards it's
+        value to the next observer without filtering or modification.
+
+        Parameters
+        ----------
+        rising : typing.Callable[[T], None] | None, optional
+            callback to invoke on rising, by default None
+        falling : typing.Callable[[T], None] | None, optional
+            callback to invoke on falling edte, by default None
+        criterion : typing.Callable[[T], bool], optional
+            criterion to determine the binary state of non binary values, by default bool()
+        """
+
+        self._rising = rising
+        self._falling = falling
+        self._criterion = criterion
+
+        self._previous_state: bool = ...
+
+    @typing.override
+    def __call__[CT](self, v: CT) -> CT:
+        state = self._criterion(v)
+
+        if self._previous_state != state and self._previous_state is not ...:
+            if state == True and self._rising is not None:
+                self._rising(v)
+            elif state == False and self._falling is not None:
+                self._falling(v)
+        
+        self._previous_state = state
+        return v
 
 
 def limits[T](
@@ -165,7 +215,7 @@ class throttle[T](StatefulFilter[T, T]):
                 return v    # propagate update
             else:
                 return ...  # inhibit update
-        # non-postponing mode
+        # postponing mode
         elif self._update_timer is not None:
             # if the timer is not active we propagate immediately,
             # otherwise we wait for timeout to propagate cumulative update
@@ -185,3 +235,96 @@ class throttle[T](StatefulFilter[T, T]):
                 dst_obs.value = src_obs.value
                 # and go into another throttle delay
                 self._update_timer.refresh()
+
+
+class debounce[T](StatefulFilter[T, T]):
+    def __init__(
+        self,
+        window: float,
+        to_bool: typing.Callable[[T], bool] = bool,
+        postpone_updates: bool = True,
+    ):
+        """
+        Causes a value update to be propagated only after it has been
+        in the same state as determined by `to_bool` for at least 
+        `window` seconds.
+
+        This is mostly used with boolean or binary data, but can be used
+        with other values by providing a custom function `to_bool` to determine
+        a binary state according to a custom criterion.
+        
+        Unlike the `throttle` filter, as long as the input value 
+        changes with shorter than `window` intervals, no updates will be 
+        propagated whatsoever. The value update will happen asynchronously
+        after the value state has not changed within `window` seconds.
+        This behavior requires an active asyncio event loop 
+        to dispatch the postponed settled values. Set `postpone_updates` to 
+        False to disable this behavior. In that case, updates will only be
+        propagated synchronously with incoming updates, which, in case of boolean
+        values, only occur when force-propagated. This mode is more useful for other
+        data that changes more frequently in value but not in the determined
+        debouncing state.
+        """
+        self._window = window
+        self._to_bool = to_bool
+
+        self._previous_state: bool = ...
+        if postpone_updates:
+            self._change_timer = WDTimer(self._window)
+            self._change_timer.on_timeout(self._on_timeout)
+            self._last_change_time = None
+        else:
+            self._change_timer = None
+            self._last_change_time = 0
+
+    @typing.override
+    def _connect(self, src, dst):
+        self._src_obs = src
+        self._dst_obs = dst
+
+    @typing.override
+    def __call__[CT](self, v: CT) -> CT:
+        # determine binary state from value
+        state = self._to_bool(v)
+        
+        # non-postponing mode
+        if self._last_change_time is not None:
+    
+            # On initial update or if the value has changed, we just save that,
+            # reset the timeout and don't propagate
+            if self._previous_state != state:
+                self._previous_state = state
+                self._last_change_time = time.time()
+                return ...
+            
+            else:
+                # value has stayed the same, if it's been like this for long enough
+                if time.time() > (self._last_change_time + self._window):
+                    return v    # propagate update, this can happen multiple times now until the state changes
+                else:
+                    return ...  # inhibit update, need to wait a bit longer
+        
+        # postponing mode
+        elif self._change_timer is not None:
+
+            # On initial update or if the value has changed, we just save that,
+            # refresh the timer and don't propagate
+            if self._previous_state != state:
+                self._previous_state = state
+                self._change_timer.refresh()
+                return ...
+            
+            else:
+                # value has stayed the same, if it's been like this for long enough 
+                # (aka. if timer is no longer active)
+                if not self._change_timer.active:
+                    return v    # propagate update, this can happen multiple times now until the state changes
+                else:
+                    return ...  # inhibit update, need to wait a bit longer
+        
+    async def _on_timeout(self) -> None:
+        src_obs = self._src_obs()
+        dst_obs = self._dst_obs()
+        if src_obs is not None and dst_obs is not None:
+            # propagate postponed update
+            dst_obs.value = src_obs.value

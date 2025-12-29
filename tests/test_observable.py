@@ -327,6 +327,37 @@ def test_call_if_true():
     obs.value = 4
     assert call_count == 2, "truthy value must cause cb"
 
+def test_on_edge():
+    obs = Observable[int]()
+    obs2 = Observable[int]()
+    rising_count = 0
+    falling_count = 0
+    def rising_cb(v):
+        nonlocal rising_count
+        rising_count += 1
+        assert v == obs.value, "cb should get observable value"
+    def falling_cb(v):
+        nonlocal falling_count
+        falling_count += 1
+        assert v == obs.value, "cb should get observable value"
+    obs >> on_edge(
+        rising=rising_cb,
+        falling=falling_cb
+    ) >> obs2.receive
+    
+    obs.value = 2
+    assert rising_count == 0,  "initial update must not cause edge trigger"
+    assert falling_count == 0, "initial update must not cause edge trigger"
+    assert obs2.value == obs.value, "value must be propagated"
+    obs.value = 0
+    assert rising_count == 0,  "2->0 is not rising"
+    assert falling_count == 1, "2->0 is falling"
+    assert obs2.value == obs.value, "value must be propagated"
+    obs.value = 4
+    assert rising_count == 1,  "0->4 is rising"
+    assert falling_count == 1, "0->4 is not falling"
+    assert obs2.value == obs.value, "value must be propagated"
+
 
 async def throttle_timing_check(tr: throttle):
     obs = Observable[int]()
@@ -415,6 +446,74 @@ async def test_throttle_hz():
 async def test_throttle_interval():
     await throttle_timing_check(throttle(interval=0.1))
     throttle_timing_check_no_postpone(throttle(interval=0.1, postpone_updates=False))
+
+
+async def test_debounce_postponing():
+    obs = Observable[bool](False)
+    observer_result = ...
+    call_count = 0
+    def observer(v: bool):
+        nonlocal observer_result, call_count
+        observer_result = v
+        call_count += 1
+    obs >> debounce(0.1) >> observer
+    
+    # create a bunch of updates (longer than the window time)
+    for _ in range(15):
+        obs.value = not obs.value
+        await asyncio.sleep(0.01)
+    # we expect none of these updates to pass yet
+    assert observer_result == ..., "no steady state update passed yet"
+    assert call_count == 0
+    # after some time, a postponed update should have happened
+    await asyncio.sleep(0.2)
+    assert observer_result == True, "first steady state update passed"
+    assert call_count == 1
+    
+    # sending another single update should not have any immediate result
+    obs.value = False
+    assert observer_result == True, "no immediate change expected"
+    assert call_count == 1
+    await asyncio.sleep(0.15)
+    assert observer_result == False, "change expected after some time"
+    assert call_count == 2
+
+def test_debounce_non_postponing():
+    obs = Observable[bool](False)
+    observer_result = ...
+    call_count = 0
+    def observer(v: bool):
+        nonlocal observer_result, call_count
+        observer_result = v
+        call_count += 1
+    obs >> debounce(0.1, postpone_updates=False) >> observer
+    
+    # create a bunch of updates (longer than the window time)
+    for _ in range(15):
+        obs.value = not obs.value
+        time.sleep(0.01)
+    # we expect none of these updates to pass yet
+    assert observer_result == ..., "no steady state update passed yet"
+    assert call_count == 0
+    # even after some time, no postponed update should have been sent
+    time.sleep(0.2)
+    assert observer_result == ..., "no steady postponed update should happen"
+    assert call_count == 0
+    # only after forcing the same value to be propagated again should an update happen
+    obs.force_notify()
+    assert observer_result == True, "first steady state update passed"
+    assert call_count == 1
+    
+    # sending another single update should not have any immediate result
+    obs.value = False
+    assert observer_result == True, "no immediate change expected"
+    assert call_count == 1
+    time.sleep(0.15)
+    assert observer_result == True, "no auto-postponed change expected"
+    assert call_count == 1
+    obs.force_notify()
+    assert observer_result == False, "synchronous change expected after some time"
+    assert call_count == 2
 
 
 def test_lifetime():
