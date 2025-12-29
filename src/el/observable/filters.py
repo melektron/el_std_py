@@ -276,6 +276,17 @@ class debounce[T](StatefulFilter[T, T]):
         else:
             self._change_timer = None
             self._last_change_time = 0
+    
+    @property
+    def window(self) -> float:
+        return self._window
+    
+    @window.setter
+    def window(self, window: float) -> None:
+        """Changes the debouncing window after the fact"""
+        self._window = window
+        if self._change_timer is not None:
+            self._change_timer.timeout = window
 
     @typing.override
     def _connect(self, src, dst):

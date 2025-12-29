@@ -39,7 +39,7 @@ class WDTimer(_BaseTimer):
 
         timeout: time to count down for in seconds
         """
-        self._timeout: float = timeout
+        self.timeout: float = timeout
         self._timer_task: asyncio.Task = None
         self._on_timeout_cb: TimerCallback = None
         self._on_restart_cb: TimerCallback = None
@@ -104,7 +104,7 @@ class WDTimer(_BaseTimer):
         return self._timer_task is not None and not self._timer_task.done()
 
     async def _timer_fn(self):
-        await asyncio.sleep(self._timeout)
+        await asyncio.sleep(self.timeout)
         self._run_callback(self._on_timeout_cb)
     
     def __del__(self):
@@ -122,7 +122,7 @@ class IntervalTimer(_BaseTimer):
 
         period: interval period in seconds
         """
-        self._period: float = period
+        self.period: float = period
         self._timer_task: asyncio.Task = None
         self._on_interval_cb: TimerCallback = None
 
@@ -170,7 +170,7 @@ class IntervalTimer(_BaseTimer):
         return self
 
     async def _timer_fn(self):
-        await asyncio.sleep(self._period)
+        await asyncio.sleep(self.period)
         self._run_callback(self._on_interval_cb)
         self._timer_task = asyncio.create_task(self._timer_fn())
 
