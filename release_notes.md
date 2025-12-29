@@ -36,6 +36,7 @@
 - `el.observable.Observable` and `el.observable.ComposedObservable`
   - `force_notify()` now propagates force updates recursively to all descendant observables, composed observables and observers, mitigating issues where forcing an update after value mutation (e.g. appending to a list) only propagated to the first layer (direct observers). This was achieved by adding the `force_recursive` kwarg throughout the entire value update call path, optionally including observer functions.
   - When registering or unregistering observers to an Observable in it's own callback, the resulting exception is now enhanced with more helpful information
+  - `link()` method now returns `other` and has the ability to transform between different types with provided transformation functions
 - `el.ctk_utils`
   - Added `flag_to_state` function to convert boolean enable flag to state string in non-dynamic settings
   - Added some more `types` to support new CTkEx widgets

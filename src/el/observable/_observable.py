@@ -330,24 +330,60 @@ class Observable[T](AbstractRegistry):
             raise RecursionError("Observable cannot observe itself")
         observable.observe(self.receive, pass_force_recursive=True)
     
-    def link(self, other: "Observable[T]", initial_update: bool = True):
+    def link[OT](
+        self, 
+        other: "Observable[OT]", 
+        initial_update: bool = True,
+        self_to_other: typing.Callable[[T], OT] = lambda v: v,
+        other_to_self: typing.Callable[[OT], T] = lambda v: v,
+    ) -> "Observable[T]":
         """
         Establishes a bidirectional link between two
         observables (`other` and `self`).
         When either observable updates, the other does as well.
         When initially linking, `other` is updated
-        with the value of `self`.
+        with the transformed value of `self` unless specified
+        otherwise using `initial_update`.
+        
+        Optionally `other` can have a different type than `self`.
+        In this case, it is possible to customize the
+        transformation functions `self_to_other` and `other_to_self` 
+        to convert between the two types.
+        In most cases they should be exact opposites to provide
+        predictable behavior.
 
         Parameters
         ----------
-        observable : Observable[T]
+        other : Observable[T]
             observable to link with
         initial_update : bool 
             whether to initially update `other` with the value
             of `self`. By default True.
+        self_to_other : typing.Callable[[T], OT]
+            Function to transform value of `self` to value of `other`.
+            By default a 1:1 transformation.
+        other_to_self : typing.Callable[[OT], T]
+            Function to transform value of `other` to value of `self`.
+            By default a 1:1 transformation.
+
+        Returns
+        ----------
+        other : Observable[OT]
+            the same observable passed to the other parameter. This can then
+            be used to pass to other observers.
         """
-        self.observe(other.receive, initial_update=initial_update, pass_force_recursive=True)
-        other.observe(self.receive, initial_update=False, pass_force_recursive=True)
+        self.observe(
+            lambda v, **kwargs: other.receive(self_to_other(v), **kwargs), 
+            initial_update=initial_update, 
+            pass_force_recursive=True
+        )
+        other.observe(
+            lambda v, **kwargs: self.receive(other_to_self(v), **kwargs), 
+            initial_update=False, 
+            pass_force_recursive=True
+        )
+
+        return other
 
     @typing.override
     def _ar_unregister(self, id: RegistrationID):

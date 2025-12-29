@@ -178,7 +178,8 @@ def test_link():
     assert obs1.value == 2, "expect initial value"
     assert obs2.value == 3, "expect initial value"
 
-    obs1.link(obs2)
+    ret = obs1.link(obs2)
+    assert ret is obs2, "expected return of other"
     assert obs1.value == 2, "expect initial value still"
     assert obs2.value == 2, "expect updated value from obs1"
 
@@ -199,7 +200,8 @@ def test_link_without_initial_update():
     assert obs1.value == 2, "expect initial value"
     assert obs2.value == 3, "expect initial value"
 
-    obs1.link(obs2, initial_update=False)
+    ret = obs1.link(obs2, initial_update=False)
+    assert ret is obs2, "expected return of other"
     assert obs1.value == 2, "expect initial value still"
     assert obs2.value == 3, "expect initial value still"
 
@@ -210,6 +212,32 @@ def test_link_without_initial_update():
     obs2.value = 5
     assert obs1.value == 5, "expect updated value on both observables"
     assert obs2.value == 5, "expect updated value on both observables"
+
+def test_with_transformation():
+    """ tests bidirectional linking with different data types """
+
+    obs1 = Observable[bool](False)
+    obs2 = Observable[str]("1")
+    
+    assert obs1.value == False, "expect initial value"
+    assert obs2.value == "1", "expect initial value"
+
+    ret = obs1.link(
+        obs2,
+        self_to_other=lambda v: str(int(v)),
+        other_to_self=lambda v: bool(int(v))
+    )
+    assert ret is obs2, "expected return of other"
+    assert obs1.value == False, "expect initial value still"
+    assert obs2.value == "0", "expect updated value from obs1"
+
+    obs1.value = True
+    assert obs1.value == True, "expect updated value on both observables"
+    assert obs2.value == "1", "expect updated value on both observables"
+
+    obs2.value = "0"
+    assert obs1.value == False, "expect updated value on both observables"
+    assert obs2.value == "0", "expect updated value on both observables"
 
 
 def test_filter_if_true():
